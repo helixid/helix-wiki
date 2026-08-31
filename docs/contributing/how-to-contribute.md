@@ -18,6 +18,25 @@ Contributions are welcome. This page is the orientation; the [`CONTRIBUTING.md`]
 
 Beyond those, bug reports with a minimal reproduction, and improvements to the example apps, are always useful.
 
+## Improving these docs
+
+This site is open source too, in its own repository: [helixid/helix-wiki](https://github.com/helixid/helix-wiki).
+
+**Every page has an "Edit this page" link at the bottom.** It opens the source file on GitHub, where you can edit in the browser and open a pull request — no clone, no local setup. For a typo, a broken link, or a sentence that is wrong, that is the entire workflow.
+
+For anything larger — a new page, or restructuring a section:
+
+```bash
+git clone https://github.com/helixid/helix-wiki.git
+cd helix-wiki
+npm install
+npm start
+```
+
+Pages are Markdown; you do not need to know React or Docusaurus to write one. `npm run build` is the check to run before opening a pull request — broken internal links fail the build, so a green build means every cross-reference resolves.
+
+If you spot something wrong but would rather not fix it yourself, [open an issue](https://github.com/helixid/helix-wiki/issues) — that is genuinely useful on its own. Details and conventions are in the repository's [CONTRIBUTING.md](https://github.com/helixid/helix-wiki/blob/main/CONTRIBUTING.md).
+
 :::note[Security issues do not go through this process]
 Do not open a public issue or PR for a vulnerability. See [Reporting a Vulnerability](../security/reporting-a-vulnerability.md).
 :::
