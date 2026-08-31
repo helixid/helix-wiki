@@ -36,26 +36,73 @@ That's it. The site publishes to `https://helixid.github.io/helix-wiki/`.
 
 ### Moving to a custom domain later
 
-The site URL is not hardcoded — `docusaurus.config.ts` reads a `CUSTOM_DOMAIN` environment variable, which the deploy workflow supplies from a repository variable. Switching domains needs **no code change**:
+`helixid.dev` is already registered and its DNS is hosted on **Cloudflare**, so a docs
+subdomain needs no purchase — just one record. `docs.helixid.dev` and
+`wiki.helixid.dev` are both currently unused.
 
-1. Add a DNS record at the provider for the domain:
+The site URL is not hardcoded: `docusaurus.config.ts` reads a `CUSTOM_DOMAIN`
+environment variable that the deploy workflow supplies from a repository variable.
+Switching domains needs **no code change**.
 
-   | Type | Name | Value |
-   | --- | --- | --- |
-   | `CNAME` | `wiki` | `helixid.github.io` |
+#### 1. Add the DNS record (Cloudflare)
 
-   (`wiki` is the subdomain; `helixid.github.io` is the Pages host — note there is no repo name and no `https://`.)
+In the Cloudflare dashboard for `helixid.dev`, go to **DNS → Records → Add record**:
 
-2. In **Settings → Secrets and variables → Actions → Variables**, add a repository variable:
+| Field | Value |
+| --- | --- |
+| Type | `CNAME` |
+| Name | `docs` |
+| Target | `helixid.github.io` |
+| Proxy status | **DNS only** (grey cloud) |
+| TTL | Auto |
 
-   | Name | Value |
-   | --- | --- |
-   | `CUSTOM_DOMAIN` | `wiki.helixid.dev` |
+The target is the Pages host — the org name plus `.github.io`. It is **not** the repo
+URL: no `/helix-wiki` path, no `https://`, no trailing slash.
 
-3. Re-run the deploy workflow. The build switches `baseUrl` to `/` and writes `build/CNAME` automatically.
-4. Once DNS propagates, enable **Enforce HTTPS** in Settings → Pages.
+> **The proxy must be off.** Cloudflare's orange-cloud proxy in front of GitHub Pages
+> causes redirect loops and TLS errors, because both sides try to terminate HTTPS and
+> issue certificates. This is the most common way this setup fails. Set the record to
+> **DNS only**. If you later want Cloudflare's CDN in front of it, that needs a
+> different configuration (Full/Strict SSL) and should be changed deliberately, not by
+> flipping the cloud icon.
 
-Removing the variable reverts the site to the `github.io` URL on the next deploy.
+#### 2. Add the repository variable
+
+**Settings → Secrets and variables → Actions → Variables → New repository variable:**
+
+| Name | Value |
+| --- | --- |
+| `CUSTOM_DOMAIN` | `docs.helixid.dev` |
+
+A bare hostname — no scheme, no trailing slash. Whatever you put here is what the site
+builds for, so this same flow works for any subdomain.
+
+> **Set the domain here, not only in the Pages UI.** Because this repo deploys through
+> GitHub Actions rather than from a branch, the published site is whatever the workflow
+> uploads. Typing a domain into **Settings → Pages** without setting this variable means
+> the next deploy uploads an artifact with no `CNAME` file and clears the setting again.
+> The workflow writes `build/CNAME` from this variable, which makes the domain survive
+> every redeploy.
+
+#### 3. Re-run the deploy
+
+Re-run the latest **Deploy to GitHub Pages** run from the Actions tab, or push any
+commit to `main`. The build switches `baseUrl` from `/helix-wiki/` to `/` and writes the
+`CNAME` file.
+
+#### 4. Enable HTTPS
+
+Once DNS propagates, **Settings → Pages** will show the custom domain and provision a
+certificate. Tick **Enforce HTTPS** when it becomes available — it is greyed out until
+the certificate is issued, which usually takes a few minutes but can take up to an hour.
+
+#### Afterwards
+
+- Point the **Docs** link on `helixid.dev` at the new URL.
+- Consider verifying the domain at **org Settings → Pages → Verified domains**, which
+  stops anyone else's GitHub account from claiming a `helixid.dev` subdomain for Pages.
+- Removing the `CUSTOM_DOMAIN` variable reverts the site to the `github.io` URL on the
+  next deploy. Nothing else needs to change.
 
 ## Structure
 
