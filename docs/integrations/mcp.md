@@ -14,6 +14,12 @@ MCP is where agent identity gets concrete: a tool call either runs or it doesn't
 npm install @helixid/mcp
 ```
 
+## The full picture
+
+<Figure src="img/helixid-flow.svg" light width={1320} height={690} fullSrc="img/helixid-flow-full.svg" alt="HelixID flow. Setup: the HelixID issuer signs a one-time Agent-Authority VC that sets the scope ceiling, and the service provider signs a Delegated Grant VC after the user logs in and consents; both are stored in the agent wallet. Then, in sequence: 1, the agent requests a VP from its wallet; 2, the wallet returns a signed VP; 3, the agent makes its tool call with _helixVP attached; 4, the MCP server verifies signature, expiry, revocation and scopes in-process with no network hop, in about 1 to 6 milliseconds cached; 5, allow executes the tool, deny returns an error; 6, the agent SDK asynchronously logs VP_VERIFIED or VP_REJECTED to the HelixID audit log.">
+  Steps 3 to 5 are what the two exports below do. <code>attachHelixVP</code> produces the call in step 3; <code>helixidMCPMiddleware</code> is step 4, and decides step 5.
+</Figure>
+
 ## Protecting a tool (server side)
 
 ```typescript

@@ -85,6 +85,8 @@ static/img/           # Logo, favicon, social card, flow diagram
 - **Admonition titles use bracket syntax** — `:::note[Title]`, not `:::note Title`. The space-separated form silently fails to parse under MDX v3.
 - **Avoid explicit heading IDs** (`{#custom-id}`). MDX v3 parses the braces as a JSX expression and the build fails. Rely on auto-generated slugs.
 - **Link between pages with relative markdown paths** (`../concepts/delegation.md`) so the build validates them.
+- **Never use a raw `<img src="/img/...">`.** A leading-slash path ignores `baseUrl` and 404s whenever the site is served from a subpath — which is the default GitHub Pages URL. Use the globally-registered `<Figure src="img/foo.svg" alt="..." />` component (`src/components/Figure.tsx`), which resolves paths through `useBaseUrl`. Docusaurus does not catch this at build time; it only shows up as a missing image in the browser.
+- **Give SVGs an intrinsic `width`/`height`** on the root element alongside `viewBox`, and pass the same values to `<Figure>`. Without them a lazy-loaded SVG collapses to zero height.
 
 ### Two claims that must not regress
 

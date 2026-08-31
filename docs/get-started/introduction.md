@@ -46,9 +46,9 @@ Authority is the **intersection** of the two. A grant can never widen what the i
 
 This two-party split is the part most often flattened into a single issuer by mistake. It is covered in full in [The Two-Issuer Model](../concepts/two-issuer-model.md).
 
-<figure className="helix-figure">
-  <img src="/img/helixid-flow.svg" alt="HelixID flow — the agent requests a VP from its wallet, presents it to the MCP server, the server verifies it locally, and the outcome is written to the audit log" />
-</figure>
+<Figure src="img/helixid-flow.svg" light width={1320} height={690} fullSrc="img/helixid-flow-full.svg" alt="HelixID flow. Setup: the HelixID issuer signs a one-time Agent-Authority VC that sets the scope ceiling, and the service provider signs a Delegated Grant VC after the user logs in and consents; both are stored in the agent wallet. Then, in sequence: 1, the agent requests a VP from its wallet; 2, the wallet returns a signed VP; 3, the agent makes its tool call with _helixVP attached; 4, the MCP server verifies signature, expiry, revocation and scopes in-process with no network hop, in about 1 to 6 milliseconds cached; 5, allow executes the tool, deny returns an error; 6, the agent SDK asynchronously logs VP_VERIFIED or VP_REJECTED to the HelixID audit log.">
+  The whole trust chain in one pass — two issuers, a local signature, in-process verification, and an audit record either way.
+</Figure>
 
 Walking the diagram:
 

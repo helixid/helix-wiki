@@ -251,16 +251,44 @@ div[class^='codeBlockContainer'] {
 
 .helix-figure {
   margin: 1.75rem 0;
+  padding: 0;
   border: 1px solid var(--helix-hairline);
   border-radius: var(--ifm-global-radius);
   overflow: hidden;
-  background-color: #fdfbf7;
 }
 
 .helix-figure img {
   display: block;
   width: 100%;
   height: auto;
+}
+
+/*
+ * Diagrams that ship their own light background (the HelixID flow SVG paints
+ * #FDFBF7). Keep that ground in both themes rather than letting a dark page
+ * show through and wreck the contrast of the dark text inside the artwork.
+ */
+.helix-figure--light img {
+  background-color: #fdfbf7;
+}
+
+[data-theme='dark'] .helix-figure--light {
+  /* Warm the border so a cream panel doesn't sit on black with a hard edge. */
+  border-color: #3a3430;
+}
+
+.helix-figure figcaption {
+  padding: 0.7rem 0.9rem;
+  border-top: 1px solid var(--helix-hairline);
+  background-color: var(--ifm-background-surface-color, #fafafa);
+  color: var(--helix-ink-muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+[data-theme='dark'] .helix-figure figcaption {
+  background-color: #121212;
+  border-top-color: #3a3430;
 }
 
 /* ---------- Footer ---------- */

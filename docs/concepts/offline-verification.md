@@ -44,6 +44,8 @@ Both are static, cacheable documents. Neither is a question about your request.
 
 Everything else — VP and VC signatures, expiry, the delegation chain, scope intersection — is computed from data already inside the presentation. **Zero network.**
 
+This is step 4 in the [flow diagram](../get-started/introduction.md) — the self-loop on the MCP server, which never leaves the process.
+
 ## Anchoring removes even those
 
 On a ledger the issuer drops out entirely:
