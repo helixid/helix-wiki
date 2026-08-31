@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Bug in HelixID itself
+    url: https://github.com/helixid/helixid/issues
+    about: For the SDK, API, or packages — not the documentation site.
+  - name: Questions and discussion
+    url: https://github.com/helixid/helixid/discussions
+    about: Ask a question or share what you're building.
+  - name: Report a security vulnerability
+    url: https://github.com/helixid/helixid/security/advisories
+    about: Please do not open a public issue for security reports.
