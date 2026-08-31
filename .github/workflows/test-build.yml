@@ -1,0 +1,20 @@
+name: Test build
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build (no deploy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Docusaurus fails the build on broken internal links, so this is the
+      # link check as well as the build check.
+      - run: npm run build

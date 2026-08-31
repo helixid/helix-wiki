@@ -1,0 +1,271 @@
+/**
+ * HelixID wiki theme.
+ * Tokens sampled from the live helixid.dev bundle (Geist / Geist Mono,
+ * --color-accent #ff6a00, --color-ink #0a0a0a) and the HelixID brand
+ * flow diagram. Black-led, high contrast, developer-serious.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --helix-accent: #ff6a00;
+  --helix-accent-strong: #c7510a;
+  --helix-accent-soft: #fff1e8;
+  --helix-ink: #0a0a0a;
+  --helix-ink-muted: #5a5a5a;
+  --helix-hairline: #ececec;
+
+  --ifm-font-family-base: 'Geist', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, 'Liberation Mono', monospace;
+
+  --ifm-color-primary: #c7510a;
+  --ifm-color-primary-dark: #b34909;
+  --ifm-color-primary-darker: #a94508;
+  --ifm-color-primary-darkest: #8b3907;
+  --ifm-color-primary-light: #db590b;
+  --ifm-color-primary-lighter: #e55d0c;
+  --ifm-color-primary-lightest: #ff6a00;
+
+  --ifm-background-color: #ffffff;
+  --ifm-heading-color: var(--helix-ink);
+  --ifm-font-color-base: #1c1917;
+  --ifm-toc-border-color: var(--helix-hairline);
+  --ifm-hr-border-color: var(--helix-hairline);
+
+  --ifm-code-font-size: 92%;
+  --ifm-heading-font-weight: 600;
+  --ifm-h1-font-size: 2.25rem;
+  --ifm-navbar-height: 62px;
+  --ifm-global-radius: 8px;
+
+  --docusaurus-highlighted-code-line-bg: rgba(255, 106, 0, 0.12);
+}
+
+[data-theme='dark'] {
+  --helix-ink: #f5f4f2;
+  --helix-ink-muted: #a1a1a1;
+  --helix-hairline: #262626;
+
+  /* Orange reads brighter on black — use the pure accent as primary here. */
+  --ifm-color-primary: #ff6a00;
+  --ifm-color-primary-dark: #e65f00;
+  --ifm-color-primary-darker: #d95a00;
+  --ifm-color-primary-darkest: #b34a00;
+  --ifm-color-primary-light: #ff7d1f;
+  --ifm-color-primary-lighter: #ff862e;
+  --ifm-color-primary-lightest: #ffa05c;
+
+  --ifm-background-color: #0a0a0a;
+  --ifm-background-surface-color: #121212;
+  --ifm-heading-color: var(--helix-ink);
+  --ifm-font-color-base: #d6d3d1;
+  --ifm-toc-border-color: var(--helix-hairline);
+  --ifm-hr-border-color: var(--helix-hairline);
+
+  --docusaurus-highlighted-code-line-bg: rgba(255, 106, 0, 0.18);
+}
+
+/* ---------- Navbar ---------- */
+
+.navbar {
+  border-bottom: 1px solid var(--helix-hairline);
+  box-shadow: none;
+  backdrop-filter: saturate(180%) blur(12px);
+}
+
+[data-theme='dark'] .navbar {
+  background-color: rgba(10, 10, 10, 0.85);
+}
+
+.navbar__title {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.navbar__logo img {
+  height: 26px;
+  width: auto;
+}
+
+/* ---------- Typography ---------- */
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.021em;
+}
+
+.markdown h2 {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--helix-hairline);
+  margin-top: 2.5rem;
+}
+
+.markdown > p,
+.markdown > ul,
+.markdown > ol {
+  line-height: 1.72;
+}
+
+/* ---------- Code ---------- */
+
+code {
+  border: 1px solid var(--helix-hairline);
+  border-radius: 5px;
+  font-variant-ligatures: none;
+}
+
+[data-theme='dark'] code {
+  background-color: #161616;
+}
+
+div[class^='codeBlockContainer'] {
+  border: 1px solid var(--helix-hairline);
+  border-radius: var(--ifm-global-radius);
+  box-shadow: none;
+}
+
+/* ---------- Tables ---------- */
+
+.markdown table {
+  display: table;
+  width: 100%;
+  font-size: 0.92rem;
+}
+
+.markdown table thead tr {
+  border-bottom: 2px solid var(--helix-hairline);
+}
+
+.markdown table th {
+  font-weight: 600;
+  text-align: left;
+}
+
+[data-theme='dark'] .markdown table tr {
+  background-color: transparent;
+  border-top-color: var(--helix-hairline);
+}
+
+[data-theme='dark'] .markdown table tr:nth-child(2n) {
+  background-color: #101010;
+}
+
+/* ---------- Sidebar ---------- */
+
+.menu {
+  font-size: 0.9rem;
+  padding: 1rem 0.6rem;
+}
+
+.menu__list-item-collapsible .menu__link--sublist {
+  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--helix-ink-muted);
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 600;
+  background-color: var(--helix-accent-soft);
+  color: var(--helix-accent-strong);
+}
+
+[data-theme='dark'] .menu__link--active:not(.menu__link--sublist) {
+  background-color: rgba(255, 106, 0, 0.14);
+  color: var(--ifm-color-primary-lightest);
+}
+
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--helix-hairline) !important;
+}
+
+/* ---------- Admonitions ---------- */
+
+.theme-admonition {
+  border-radius: var(--ifm-global-radius);
+  border-width: 1px;
+  border-left-width: 3px;
+}
+
+/* ---------- "Planned" / status badges ---------- */
+
+.helix-badge {
+  display: inline-block;
+  padding: 0.12em 0.55em;
+  border-radius: 999px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.helix-badge--shipped {
+  background-color: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.4);
+  color: #15803d;
+}
+
+.helix-badge--planned {
+  background-color: rgba(255, 106, 0, 0.12);
+  border-color: rgba(255, 106, 0, 0.42);
+  color: var(--helix-accent-strong);
+}
+
+.helix-badge--parked {
+  background-color: rgba(120, 113, 108, 0.14);
+  border-color: rgba(120, 113, 108, 0.4);
+  color: #57534e;
+}
+
+[data-theme='dark'] .helix-badge--shipped {
+  color: #4ade80;
+}
+
+[data-theme='dark'] .helix-badge--planned {
+  color: #ff9d52;
+}
+
+[data-theme='dark'] .helix-badge--parked {
+  color: #a8a29e;
+}
+
+/* Roadmap checkbox lists render as plain, unindented status rows. */
+.markdown ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.markdown ul.contains-task-list li {
+  margin-bottom: 0.4rem;
+}
+
+/* ---------- Diagrams ---------- */
+
+.helix-figure {
+  margin: 1.75rem 0;
+  border: 1px solid var(--helix-hairline);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+  background-color: #fdfbf7;
+}
+
+.helix-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---------- Footer ---------- */
+
+.footer--dark {
+  --ifm-footer-background-color: #0a0a0a;
+  border-top: 1px solid var(--helix-hairline);
+}
