@@ -72,7 +72,19 @@
 .navbar {
   border-bottom: 1px solid var(--helix-hairline);
   box-shadow: none;
-  backdrop-filter: saturate(180%) blur(12px);
+}
+
+/*
+ * The mobile nav drawer (.navbar-sidebar) is a position:fixed child of
+ * .navbar. Any backdrop-filter / filter / transform on .navbar makes it a
+ * containing block for fixed descendants, which collapses the drawer to the
+ * navbar's own height (~61px) and makes the mobile menu unusable.
+ * Only apply the blur on desktop, where no drawer exists.
+ */
+@media (min-width: 997px) {
+  .navbar {
+    backdrop-filter: saturate(180%) blur(12px);
+  }
 }
 
 [data-theme='dark'] .navbar {
@@ -129,10 +141,25 @@ div[class^='codeBlockContainer'] {
 
 /* ---------- Tables ---------- */
 
+/*
+ * Docusaurus ships tables as display:block + overflow:auto so wide ones scroll
+ * inside themselves. Forcing display:table gives nicer full-width tables but
+ * removes that, so a wide table pushes the whole page sideways on a phone.
+ * Full-width only where there is room; scrollable everywhere else.
+ */
 .markdown table {
-  display: table;
-  width: 100%;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
   font-size: 0.92rem;
+}
+
+@media (min-width: 997px) {
+  .markdown table {
+    display: table;
+    width: 100%;
+  }
 }
 
 .markdown table thead tr {
@@ -275,6 +302,22 @@ div[class^='codeBlockContainer'] {
 [data-theme='dark'] .helix-figure--light {
   /* Warm the border so a cream panel doesn't sit on black with a hard edge. */
   border-color: #3a3430;
+}
+
+/*
+ * The flow diagram is a 1320px-wide sequence chart. Squeezed into a phone
+ * viewport its labels are unreadable, so let it keep a legible width and
+ * scroll inside its own frame instead. The scroll is contained by the figure,
+ * so the page itself never moves sideways.
+ */
+@media (max-width: 996px) {
+  .helix-figure--light {
+    overflow-x: auto;
+  }
+
+  .helix-figure--light img {
+    min-width: 640px;
+  }
 }
 
 .helix-figure figcaption {
