@@ -56,6 +56,10 @@ The property is "no synchronous call to the issuer asking it to vouch for this s
 
 ### Monorepo with pnpm workspaces + Turborepo
 
+:::note[Superseded]
+The monorepo has since been split into per-component repositories — see [Project Structure](../get-started/project-structure.md). The reasoning below is why it started as one, and the pnpm/Turborepo tooling still applies inside `helix-sdk-js`.
+:::
+
 **Why:** shared `helix-core` primitives are needed by both the API and the SDK. Turborepo ensures correct build order (`helix-core` before `helix-api` and `helix-sdk-js`) and enables remote caching for CI speed.
 
 **Rejected:** separate repos with local `npm link` — too much synchronization overhead.

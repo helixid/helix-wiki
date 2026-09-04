@@ -8,7 +8,7 @@ description: Standalone scripts for VP verification, scope checks, self-verifica
 
 # Local Verification Scripts
 
-Small, self-contained scripts in [`examples/`](https://github.com/helixid/helixid/tree/main/examples) that exercise one behaviour each. They mint fresh credentials and sign fresh VPs automatically — no fixture file needed.
+Small, self-contained scripts in [`examples/`](https://github.com/helixid/helix-server/tree/main/examples) that exercise one behaviour each. They mint fresh credentials and sign fresh VPs automatically — no fixture file needed.
 
 Start the API first:
 

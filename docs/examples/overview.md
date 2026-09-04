@@ -8,7 +8,11 @@ description: Every runnable HelixID example — two Docker demos, live framework
 
 # Examples
 
-Everything here is in the [`examples/`](https://github.com/helixid/helixid/tree/main/examples) directory of the code repository and runs locally.
+Everything here is in the [`examples/`](https://github.com/helixid/helix-server/tree/main/examples) directory of [`helix-server`](https://github.com/helixid/helix-server) and runs locally. That repository is [being folded into `helixid/helixid`](../get-started/project-structure.md#helix-server), so the clone URLs below will change — the example paths inside it will not.
+
+:::note[Python variants]
+Both end-to-end demos now ship in two flavours: `e2e-consent-demo` / `e2e-travel-concierge` drive the agent side with the JS SDK, and `e2e-consent-demo-py` / `e2e-travel-concierge-py` do the same with the Python SDK against the same server. The walkthroughs below describe the JS variants; the Python ones follow the same script.
+:::
 
 | Example | Needs | Shows |
 | --- | --- | --- |

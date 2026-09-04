@@ -24,7 +24,7 @@ npm install -g @helixid/cli     # operator CLI (`helix`)
 npm install @helixid/did-hedera # optional Hedera DID resolver
 ```
 
-The repository itself is a pnpm workspace. To build from source:
+The SDK and its adapters live in [`helix-sdk-js`](https://github.com/helixid/helix-sdk-js), a pnpm workspace. To build from source:
 
 ```bash
 pnpm install

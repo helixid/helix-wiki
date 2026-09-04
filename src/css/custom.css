@@ -246,6 +246,12 @@ div[class^='codeBlockContainer'] {
   color: var(--helix-accent-strong);
 }
 
+.helix-badge--progress {
+  background-color: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.42);
+  color: #1d4ed8;
+}
+
 .helix-badge--parked {
   background-color: rgba(120, 113, 108, 0.14);
   border-color: rgba(120, 113, 108, 0.4);
@@ -258,6 +264,10 @@ div[class^='codeBlockContainer'] {
 
 [data-theme='dark'] .helix-badge--planned {
   color: #ff9d52;
+}
+
+[data-theme='dark'] .helix-badge--progress {
+  color: #7aa7ff;
 }
 
 [data-theme='dark'] .helix-badge--parked {
