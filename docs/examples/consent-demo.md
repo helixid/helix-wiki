@@ -63,4 +63,4 @@ Counting prompts is the only way to catch a standing grant silently failing to a
 docker compose down -v
 ```
 
-Full walkthrough: [`examples/e2e-consent-demo`](https://github.com/helixid/helixid/tree/main/examples/e2e-consent-demo).
+Source and full walkthrough: [`examples/e2e-consent-demo`](https://github.com/helixid/helixid/tree/main/examples/e2e-consent-demo). A Python-agent variant of the same demo is in [`e2e-consent-demo-py`](https://github.com/helixid/helixid/tree/main/examples/e2e-consent-demo-py).

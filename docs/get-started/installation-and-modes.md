@@ -24,7 +24,7 @@ npm install -g @helixid/cli     # operator CLI (`helix`)
 npm install @helixid/did-hedera # optional Hedera DID resolver
 ```
 
-The repository itself is a pnpm workspace. To build from source:
+The SDK and its adapters live in [`helix-sdk-js`](https://github.com/helixid/helix-sdk-js), a pnpm workspace. To build from source:
 
 ```bash
 pnpm install
@@ -86,7 +86,7 @@ Start the API:
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 The full variable list is in [Environment & Configuration](../self-hosting/configuration.md).
@@ -101,17 +101,17 @@ Regenerate the Prisma client:
 
 ```bash
 pnpm install
-pnpm --filter @helixid/api db:generate
-pnpm --filter @helixid/api dev
+pnpm db:generate
+pnpm dev
 ```
 
 If needed, force a clean reinstall:
 
 ```bash
-rm -rf node_modules helix-api/node_modules
+rm -rf node_modules
 pnpm install --force
-pnpm --filter @helixid/api db:generate
-pnpm --filter @helixid/api dev
+pnpm db:generate
+pnpm dev
 ```
 
 ## Enrolling an agent

@@ -54,13 +54,15 @@ pnpm install
 pnpm build
 ```
 
-This is a pnpm workspace — `pnpm`, not `npm`. Internal dependencies are linked with `workspace:*`, and phantom dependencies are deliberately impossible. See [Design Decisions](../architecture/design-decisions.md).
+The JS/TS repositories are pnpm workspaces — `pnpm`, not `npm`. Internal dependencies are linked with `workspace:*`, and phantom dependencies are deliberately impossible. See [Design Decisions](../architecture/design-decisions.md).
+
+Which repository to clone depends on what you are changing — see [Project Structure](../get-started/project-structure.md#which-repository-does-my-change-belong-in).
 
 Configure `.env` from `.env.example` before running anything that needs the API. The default runtime is SQLite plus an in-memory cache plus `did:web`, with no external infrastructure. Full variable list: [Environment & Configuration](../self-hosting/configuration.md).
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 ## Running tests

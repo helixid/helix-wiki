@@ -14,7 +14,7 @@ Start the API first:
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api start
+pnpm dev
 ```
 
 ## The scripts
@@ -92,11 +92,10 @@ Two further scripts demonstrate the repeat-call patterns from [Hybrid 3-Layer De
 
 ```bash
 # Path A — verifier-issued JWT session
-JWT_SECRET=replace-with-a-strong-secret \
-pnpm --filter @helixid/api exec tsx ../examples/verifier-session-cycle.ts
+pnpm example:verify-vp:session-bridge
 
 # Path B — VP-result caching, no JWT
-pnpm --filter @helixid/api exec tsx ../examples/verifier-vp-cache-cycle.ts
+pnpm example:verifier:vp-cache
 ```
 
 In both, the verifier owns the policy and infrastructure decisions: scope checks, the replay/cache store, TTLs, headers, and secrets.

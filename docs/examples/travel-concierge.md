@@ -23,8 +23,7 @@ The concierge uses a real LLM to decide when to call the booking tool. Obtain a 
 
 ```bash
 git clone https://github.com/helixid/helixid.git
-cd helixid
-cd examples/e2e-travel-concierge
+cd helixid/examples/e2e-travel-concierge
 cp .env.example .env
 ```
 
@@ -115,4 +114,4 @@ The protected tool refuses the booking because HelixID did not receive a valid p
 docker compose down -v
 ```
 
-Source: [`examples/e2e-travel-concierge`](https://github.com/helixid/helixid/tree/main/examples/e2e-travel-concierge).
+Source: [`examples/e2e-travel-concierge`](https://github.com/helixid/helixid/tree/main/examples/e2e-travel-concierge). A Python-agent variant is in [`e2e-travel-concierge-py`](https://github.com/helixid/helixid/tree/main/examples/e2e-travel-concierge-py).

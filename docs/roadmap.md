@@ -8,7 +8,7 @@ description: What has shipped, what is planned, and what is deliberately parked.
 
 # Roadmap
 
-<span className="helix-badge helix-badge--shipped">Shipped</span> is available in the current release. <span className="helix-badge helix-badge--planned">Planned</span> is intended but not built. <span className="helix-badge helix-badge--parked">Parked</span> is valid scope that has been deliberately deferred, with a recorded reason.
+<span className="helix-badge helix-badge--shipped">Shipped</span> is available in the current release. <span className="helix-badge helix-badge--progress">In progress</span> is being built but is not released. <span className="helix-badge helix-badge--planned">Planned</span> is intended but not started. <span className="helix-badge helix-badge--parked">Parked</span> is valid scope that has been deliberately deferred, with a recorded reason.
 
 :::warning[Nothing on this page that is unchecked is available]
 Unchecked items are not partially available, not behind a flag, and not in a preview. If a page in these docs describes a capability, it ships; if it appears here unchecked, it does not.
@@ -52,8 +52,13 @@ Issued VCs reference a HelixID-specific context that is not yet hosted. Verifica
 
 ## Phase 2 — Framework Integrations & Scale
 
-- [ ] <span className="helix-badge helix-badge--parked">Parked</span> Python SDK (`helix-sdk-py`) — parked until the JS/TS SDK surface is stable enough to mirror without creating divergent crypto behaviour. Compatibility tests must prove Python-generated VPs verify through the same path as JS-generated ones.
-- [ ] <span className="helix-badge helix-badge--parked">Parked</span> `@helixid/crewai` — CrewAI integration. Parked until the Python SDK exists; building it now would need either a temporary Python signing path or duplicated SDK behaviour.
+- [x] **Repository split** — the SDKs and the console now live in `helix-sdk-js`, `helix-sdk-py` and `helix-console`. See [Project Structure](./get-started/project-structure.md).
+- [x] **Server consolidated into `helixid/helixid`** — `helixid` is now the self-hosted server you run, with the API implementation in [`helix-core`](https://github.com/helixid/helix-core) as a dependency. See [Project Structure](./get-started/project-structure.md).
+- [ ] <span className="helix-badge helix-badge--progress">In progress</span> **Migrate the demo applications** — the end-to-end consent and travel-concierge demos and the standalone verifier scripts have not yet landed in a public repository after the split. See [Examples](./examples/overview.md).
+- [ ] <span className="helix-badge helix-badge--progress">In progress</span> **Republish the packages after the split** — fold `@helixid/core` into `@helixid/sdk-js`, split `@helixid/mcp` into `@helixid/mcp-middleware` and `@helixid/mcp-server`, and publish `@helixid/widget`. Until this lands, `@helixid/core` and `@helixid/mcp` remain the installable packages.
+
+- [ ] <span className="helix-badge helix-badge--progress">In progress</span> Python SDK — lives in [`helix-sdk-py`](https://github.com/helixid/helix-sdk-py) as `helixid-sdk-py`, mirroring the JS/TS surface. Shared golden-vector fixtures prove Python-generated VPs verify through the same path as JS-generated ones. Not yet on PyPI.
+- [ ] <span className="helix-badge helix-badge--progress">In progress</span> CrewAI integration — `helix_crewai`, shipped inside `helix-sdk-py`. Publishes with it.
 - [ ] <span className="helix-badge helix-badge--planned">Planned</span> `@helixid/n8n` — n8n node
 - [ ] <span className="helix-badge helix-badge--planned">Planned</span> Trust registry v1 — shared issuer vetting, so accepting a new organization's credentials is an O(1) lookup rather than a per-org allowlist entry
 
