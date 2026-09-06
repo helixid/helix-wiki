@@ -53,7 +53,8 @@ Issued VCs reference a HelixID-specific context that is not yet hosted. Verifica
 ## Phase 2 — Framework Integrations & Scale
 
 - [x] **Repository split** — the SDKs and the console now live in `helix-sdk-js`, `helix-sdk-py` and `helix-console`. See [Project Structure](./get-started/project-structure.md).
-- [ ] <span className="helix-badge helix-badge--progress">In progress</span> **Consolidate the API into `helixid/helixid`** — the server currently lives in `helix-server` and is being folded back into the flagship repository, which becomes the server repo. Only the repository URL changes; the layout stays as it is.
+- [x] **Server consolidated into `helixid/helixid`** — `helixid` is now the self-hosted server you run, with the API implementation in [`helix-core`](https://github.com/helixid/helix-core) as a dependency. See [Project Structure](./get-started/project-structure.md).
+- [ ] <span className="helix-badge helix-badge--progress">In progress</span> **Migrate the demo applications** — the end-to-end consent and travel-concierge demos and the standalone verifier scripts have not yet landed in a public repository after the split. See [Examples](./examples/overview.md).
 - [ ] <span className="helix-badge helix-badge--progress">In progress</span> **Republish the packages after the split** — fold `@helixid/core` into `@helixid/sdk-js`, split `@helixid/mcp` into `@helixid/mcp-middleware` and `@helixid/mcp-server`, and publish `@helixid/widget`. Until this lands, `@helixid/core` and `@helixid/mcp` remain the installable packages.
 
 - [ ] <span className="helix-badge helix-badge--progress">In progress</span> Python SDK — lives in [`helix-sdk-py`](https://github.com/helixid/helix-sdk-py) as `helixid-sdk-py`, mirroring the JS/TS surface. Shared golden-vector fixtures prove Python-generated VPs verify through the same path as JS-generated ones. Not yet on PyPI.

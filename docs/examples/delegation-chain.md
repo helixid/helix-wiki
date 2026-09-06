@@ -8,7 +8,7 @@ description: A standalone script showing one agent sub-delegating a reduced cred
 
 # Delegation Chain
 
-[`examples/delegation-demo.ts`](https://github.com/helixid/helix-server/tree/main/examples/delegation-demo.ts) is the smallest complete picture of agent-to-agent delegation: one agent signs a reduced credential for another, and a verifier walks the resulting chain.
+[`examples/delegation-demo.ts`](https://github.com/helixid/helixid/tree/main/examples/delegation-demo.ts) is the smallest complete picture of agent-to-agent delegation: one agent signs a reduced credential for another, and a verifier walks the resulting chain.
 
 ## The shape of it
 

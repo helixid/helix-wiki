@@ -13,7 +13,7 @@ description: Every environment variable helix-api reads, with defaults and guida
 ```bash
 cp .env.example .env
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 ## Minimum viable configuration

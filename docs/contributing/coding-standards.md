@@ -8,9 +8,9 @@ description: The conventions a HelixID pull request is held to, and where the au
 
 # Coding Standards & PR Process
 
-The complete and authoritative rules live in [`CONTRIBUTING.md`](https://github.com/helixid/helixid/blob/main/CONTRIBUTING.md) and [`constitution.md`](https://github.com/helixid/helixid/blob/main/constitution.md) in the code repository. This page is a summary so you know what to expect before you open a PR — it is not a substitute for reading the real thing, and where the two differ, the repository wins.
+The authoritative rules live in each repository's own `CONTRIBUTING.md` — start with [`helixid/helixid`](https://github.com/helixid/helixid/blob/main/CONTRIBUTING.md). This page is a summary so you know what to expect before you open a PR; where the two differ, the repository wins.
 
-The constitution is the stricter of the two. It covers monorepo structure, the technology stack, [security axioms](../security/security-model.md#security-axioms), API contract rules, the `helix-core` communication model, error handling, environment variables, the [audit log contract](../security/security-model.md#audit-log-contract), dependency policy, testing constraints, and the project's definition of done. Its security axioms are explicitly non-negotiable — a PR that violates one is rejected without exception.
+Two sets of rules matter most and are documented here in full: the [security axioms](../security/security-model.md#security-axioms), which are explicitly non-negotiable — a PR that violates one is rejected without exception — and the [audit log contract](../security/security-model.md#audit-log-contract). Architectural decisions are recorded in [`docs/decisions.md`](https://github.com/helixid/helixid/blob/main/docs/decisions.md), alongside per-topic decision and proposal documents in the same directory.
 
 ## Branches and commits
 

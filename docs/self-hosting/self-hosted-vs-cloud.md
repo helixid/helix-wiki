@@ -32,7 +32,7 @@ or
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 You are responsible for:

@@ -13,8 +13,8 @@ This is the [two-issuer model](../concepts/two-issuer-model.md) running. A trave
 No LLM API key required — the agent falls back to a scripted planner if you don't set one.
 
 ```bash
-git clone https://github.com/helixid/helix-server.git
-cd helix-server/examples/e2e-consent-demo
+git clone https://github.com/helixid/helixid.git
+cd helixid/examples/e2e-consent-demo
 cp .env.example .env
 docker compose up --build
 ```
@@ -63,4 +63,4 @@ Counting prompts is the only way to catch a standing grant silently failing to a
 docker compose down -v
 ```
 
-Full walkthrough: [`examples/e2e-consent-demo`](https://github.com/helixid/helix-server/tree/main/examples/e2e-consent-demo).
+Source and full walkthrough: [`examples/e2e-consent-demo`](https://github.com/helixid/helixid/tree/main/examples/e2e-consent-demo). A Python-agent variant of the same demo is in [`e2e-consent-demo-py`](https://github.com/helixid/helixid/tree/main/examples/e2e-consent-demo-py).

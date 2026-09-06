@@ -86,7 +86,7 @@ Start the API:
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 The full variable list is in [Environment & Configuration](../self-hosting/configuration.md).
@@ -101,17 +101,17 @@ Regenerate the Prisma client:
 
 ```bash
 pnpm install
-pnpm --filter @helixid/api db:generate
-pnpm --filter @helixid/api dev
+pnpm db:generate
+pnpm dev
 ```
 
 If needed, force a clean reinstall:
 
 ```bash
-rm -rf node_modules helix-api/node_modules
+rm -rf node_modules
 pnpm install --force
-pnpm --filter @helixid/api db:generate
-pnpm --filter @helixid/api dev
+pnpm db:generate
+pnpm dev
 ```
 
 ## Enrolling an agent

@@ -1,56 +1,65 @@
 ---
 id: core
-title: "@helixid/core"
+title: The core API layer
 sidebar_label: "@helixid/core"
 sidebar_position: 2
-description: The cryptographic primitives layer beneath the SDK and API — DID resolution, Ed25519, VP verification.
+description: The server-side package that holds HelixID's API implementation — and why you don't install it in an application.
 ---
 
-# `@helixid/core`
+# The core API layer
 
-**Cryptographic primitives for AI agent identity** — DID resolution, Ed25519 signing and verification, VP verification, canonical JSON, credential schemas, and the delegation and self-signed primitives.
+`@helixid/core` is the package that holds HelixID's **API implementation** — routes, services, repositories, storage adapters, caching, audit, and optional Hedera support. It lives in [`helix-core`](https://github.com/helixid/helix-core).
 
-```bash
-npm install @helixid/core
-```
+:::danger[Do not install this in an application]
+This is a **server-side dependency**. The self-hosted server ([`helixid`](https://github.com/helixid/helixid)) consumes it as a git dependency; you do not add it to an agent, a verifier, or an integration.
 
-## When to use it directly
+If you are building against HelixID, you want [`@helixid/sdk-js`](./sdk-js.md) or the Python SDK. Everything an agent or verifier needs is there.
+:::
 
-Most applications should not. `@helixid/sdk-js` and `@helixid/api` both depend on `helix-core`, and the SDK exposes what an agent or verifier normally needs.
+:::caution[The `@helixid/core` on npm is retired]
+There is an older `@helixid/core` published to npm at **0.1.5**. It predates the repository split and is **retired** — it was withdrawn once its only second consumer stopped needing it locally.
 
-Reach for `@helixid/core` when you are building something the SDK does not model — a custom resolver, an alternative wallet backend, or a verifier in an unusual runtime.
-
-:::warning[Never re-implement what core owns]
-Adapters and integrations must not hand-roll VP canonicalization, base58/base64url encoding, Ed25519 signing, or verification semantics. Divergent crypto behaviour between two paths that are supposed to agree is a security bug, not a style problem. This is enforced in review — see [Coding Standards](../contributing/coding-standards.md).
+The current package reuses the name for a different purpose and is consumed from source, not from npm. Do not add the npm package to new code, and remove it if you have it. The reasoning is recorded in [`proposal-retire-core-package.md`](https://github.com/helixid/helixid/blob/main/docs/proposal-retire-core-package.md).
 :::
 
 ## What lives here
 
 | Area | Responsibility |
 | --- | --- |
-| DID resolution | Resolving `did:key`, `did:web`, and (via the optional plugin) `did:hedera`, with in-process caching |
-| Ed25519 | Key generation, signing, and signature verification |
-| VP verification | Signature, expiry, target service, revocation, and delegation-chain checks |
-| Canonical JSON | Recursively key-sorted serialization, the basis of the proof format |
-| Schemas | Credential and presentation shapes |
-| Delegation | Child-VC construction and chain validation primitives |
-| Self-signed | The development-only self-issuance path |
+| `routes/` | The HTTP surface — every endpoint in the [API reference](./http-api.md) |
+| `services/` | Business logic — issuance, verification, delegation, revocation |
+| `repositories/` | Persistence, behind an interface |
+| `storage/` | Storage adapters |
+| `cache/` | DID document and status-list caching |
+| `audit/` | The [audit log contract](../security/security-model.md#audit-log-contract) |
+| `middleware/` | Request-level concerns |
+| `hedera/` | Optional `did:hedera` support |
+
+## Why it is a separate package
+
+Keeping the API implementation in its own package means the layer that makes trust decisions has **one home** rather than copies that drift apart. The server repository stays thin — a runnable shell that composes this package — and the logic itself is versioned and tested in one place.
+
+See [Project Structure](../get-started/project-structure.md#how-helixid-and-helix-core-fit-together) for how the two fit together.
+
+## Where the client-side crypto lives
+
+The primitives an agent or verifier needs — DID resolution and caching, Ed25519 signing and verification, VP verification, canonical JSON — are in [`@helixid/sdk-js`](./sdk-js.md), which depends directly on `@noble/ed25519` and `@noble/hashes`.
+
+:::warning[Never re-implement what the SDK owns]
+Adapters, middleware, and examples must not hand-roll VP canonicalization, base58/base64url encoding, Ed25519 signing, or verification semantics. Divergent crypto behaviour between two paths that are supposed to agree is a security bug, not a style problem. This is enforced in review — see [Coding Standards](../contributing/coding-standards.md).
+:::
 
 ## Cache TTLs
 
-The DID resolver's TTLs are constants in this package, applied automatically with no configuration:
+The DID resolver's TTLs are applied automatically with no configuration:
 
-| Constant | Value |
+| DID method | TTL |
 | --- | --- |
-| `DID_WEB_TTL_MS` | 5 minutes |
-| `DID_HEDERA_TTL_MS` | 15 minutes |
+| `did:web` | 5 minutes |
+| `did:hedera` | 15 minutes |
 
-The VP verifier's `fetchStatusList` is a plain fetch per verification — there is no default status-list cache. Callers inject a `statusListResolver`. See [Performance & Caching](../architecture/performance-and-caching.md).
+The status list has **no default cache** — callers inject a `statusListResolver`. See [Performance & Caching](../architecture/performance-and-caching.md).
 
-## Hedera loading
+## Hedera
 
-`did:hedera` support is loaded dynamically. If [`@helixid/did-hedera`](./did-hedera.md) is installed, `helix-core` picks it up; if it is not, `did:key` and `did:web` continue to work with no ledger dependency at all. The core never requires a DLT.
-
-## Cryptographic dependencies
-
-Only `@noble/curves` and `@noble/hashes` are permitted for cryptographic operations — audited, maintained, no native dependencies, and tree-shakeable, which keeps the SDK browser-compatible. See [Design Decisions](../architecture/design-decisions.md).
+`did:hedera` support is loaded dynamically. If [`@helixid/did-hedera`](./did-hedera.md) is present it is picked up; if not, `did:key` and `did:web` work with no ledger dependency at all. The core never requires a DLT.

@@ -62,7 +62,7 @@ Configure `.env` from `.env.example` before running anything that needs the API.
 
 ```bash
 set -a; source .env; set +a
-pnpm --filter @helixid/api dev
+pnpm dev
 ```
 
 ## Running tests
