@@ -18,6 +18,12 @@ Three ways in, depending on what you want to see. All run locally.
 
 New here? Run the **[consent demo](../examples/consent-demo.md)** — it needs no API key and shows the whole identity → consent → verification → action → audit story end to end.
 
+Both Docker demos are **self-contained**: clone this one repository, `cd` into the demo, and `docker compose up --build`. No second checkout, no pre-built sibling packages, no registry credentials.
+
+:::warning[Run one demo at a time]
+The two TypeScript demos share ports `3000` and `8080`. Ports, sign-ins and troubleshooting for all four — including the Python variants — are in [Examples](../examples/overview.md#where-each-demo-listens).
+:::
+
 ## 5-minute path (no infrastructure)
 
 No Postgres, no Redis, no Hedera account, no running API. Works immediately after install — useful for testing the VP/verification flow locally, or if you already have a VC issued by a self-hosted issuer or any other means.

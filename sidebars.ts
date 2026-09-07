@@ -77,6 +77,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'self-hosting/self-hosted-vs-cloud',
         'self-hosting/configuration',
+        'self-hosting/console',
       ],
     },
     {

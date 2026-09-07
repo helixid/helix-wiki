@@ -10,7 +10,7 @@ description: A travel agent books a flight and a hotel from two independent serv
 
 This is the [two-issuer model](../concepts/two-issuer-model.md) running. A travel agent books a flight and a hotel from **two independent service providers**, each with its own `did:web` identity, its own status list, and its own consent grant.
 
-No LLM API key required — the agent falls back to a scripted planner if you don't set one.
+No LLM API key required — the agent falls back to a **scripted planner** if you don't set one, and the chat header switches to `Scripted planner` to show it has. That fallback also catches a rate-limited or unavailable provider mid-run, so this demo keeps working when the concierge demo can't.
 
 ```bash
 git clone https://github.com/helixid/helixid.git
@@ -23,8 +23,14 @@ docker compose up --build
 | --- | --- |
 | **http://localhost:4100** | Travel Planner chat — sign in `traveler` / `demo123` |
 | **http://localhost:8080** | HelixID Console — sign in `admin` / `admin`, then open **Audit** |
-| http://localhost:4101 | Airline SP (Helix Air) |
-| http://localhost:4102 | Hotel SP (Helix Stay) |
+| http://localhost:4101 | Airline SP (Helix Air) — consent page signs in as `ada` / `demo123` |
+| http://localhost:4102 | Hotel SP (Helix Stay) — same sign-in |
+
+A Python-agent variant, `e2e-consent-demo-py`, runs the same flow on offset ports (chat 4200, Console 8081) so it can run alongside this one. See the [port table](./overview.md#where-each-demo-listens).
+
+:::warning[Allow popups for localhost]
+The service provider opens its consent page in a **popup** and hands the signed grant back to the page that opened it. The demo needs popups allowed for `localhost`, and the chat tab left open — otherwise the flow stalls at step 3.
+:::
 
 ## What to watch, in order
 

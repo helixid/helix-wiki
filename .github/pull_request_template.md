@@ -1,47 +1,25 @@
 ## What changed
 
-<!-- One or two sentences. Which pages, and what's different? -->
-
-Closes #<!-- issue number, if there is one -->
-
----
-
-## Type of change
-
-- [ ] ✏️ Correction — something was wrong or out of date
-- [ ] 📄 New page or section
-- [ ] 🔗 Broken link / image fix
-- [ ] 💅 Formatting, typo, or wording
-- [ ] 🎨 Site theme, component, or config
-- [ ] 🔧 CI / tooling
-
----
+<!-- Which pages, and what's different? A sentence or two. -->
 
 ## Why
 
-<!-- What was wrong, or what was a reader unable to find?
-     For a technical correction, say what you checked it against — a source file,
-     a package version, or something you actually ran. -->
+<!-- What was wrong, or what couldn't a reader find?
+     For a factual correction, say what you checked it against — a repo, a
+     package version, or something you actually ran. -->
 
----
+## Type
 
-## Checklist
+- [ ] ✏️ Correction — wrong or out of date
+- [ ] 📄 New page or section
+- [ ] 🔗 Link or image fix
+- [ ] 💅 Wording, formatting, typo
+- [ ] 🎨 Theme, component, or site config
 
-- [ ] `npm run build` passes locally (this is also the broken-link check)
+## Checks
+
+- [ ] `npm run build` passes — this is also the broken-link and anchor check
 - [ ] New pages are listed in `sidebars.ts`
-- [ ] Links between pages use relative `.md` paths
-- [ ] Code samples reflect what the shipped API actually does
-- [ ] Package names match what's published (`@helixid/sdk-js`, not `@helixid/sdk`)
+- [ ] Everything described as available actually ships; anything else is on the roadmap with a badge
 
-**If this touches claims about behaviour:**
-
-- [ ] Nothing is described as "offline" without the "no synchronous call to the issuer" qualifier
-- [ ] The two-issuer model is not collapsed into a single issuer
-- [ ] Anything unshipped is on the roadmap with a `Planned` / `Parked` badge, not written in the present tense
-
----
-
-## Screenshots
-
-<!-- For theme, layout, or component changes. Light and dark, and a narrow
-     viewport if the change could affect mobile. -->
+<!-- Screenshots, for theme or layout changes. Light and dark if it affects both. -->
