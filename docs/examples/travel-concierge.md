@@ -48,8 +48,17 @@ The Console/HelixID SQLite database holds real agent trust state: enrollment, is
 
 | URL | What |
 | --- | --- |
-| **http://localhost:8090** | Travel Concierge chat |
+| **http://localhost:8090** | Travel Concierge chat — sign in `traveler` / `demo123` |
 | **http://localhost:8080** | HelixID Console — sign in `admin` / `admin`, then open **Audit** |
+| http://localhost:7100 | The protected MCP server |
+
+A Python-agent variant, `e2e-travel-concierge-py`, runs the same flow on offset ports (chat 8091, Console 8082). See the [port table](./overview.md#where-each-demo-listens).
+
+:::caution[This demo has no LLM fallback]
+Unlike the [consent demo](./consent-demo.md), the concierge needs a working LLM and will surface the provider's error until it recovers. The free Google AI Studio tier returns `503 UNAVAILABLE` under load and rate-limits quickly — set `LLM_PROVIDER=anthropic` or `openai` for a steadier run.
+
+To confirm the trust layer works with no LLM in the loop, use the [denial check](#confirming-the-tool-is-actually-protected) below.
+:::
 
 ## Step 4 — The four guided use cases
 
