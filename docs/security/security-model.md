@@ -51,7 +51,7 @@ These are the verifier's, because they depend on your storage and your threat mo
 | --- | --- | --- |
 | Issuer signing key (`HELIX_SIGNING_KEY`) | The issuer service, never the operator's laptop | An attacker can mint valid credentials for your entire trust domain |
 | Admin API key (`HELIX_ADMIN_API_KEY`) | Operator tooling and CI | An attacker can issue and revoke credentials |
-| Agent private key | The agent process, encrypted at rest | An attacker can impersonate that one agent until its credential is revoked |
+| Agent private key | HelixID, encrypted at rest (AES-GCM, under `HOSTED_KEY_ENCRYPTION_KEY`) | An attacker holding both the database and that encryption key can impersonate **every** agent in the deployment, not just one |
 | SP grant signing key | The service provider | An attacker can forge consent grants for that SP |
 | Session secret (`JWT_SECRET`, HS256) | Every verifier sharing it | Anyone who can verify a token can also mint one |
 
@@ -72,9 +72,19 @@ The project constitution defines a set of non-negotiable axioms. No user story, 
 
 ### Key handling
 
-- **Private keys never leave the agent.** The agent's private key is generated locally and stored in its wallet. It is never transmitted to HelixID, never passed to the API, and never logged. VP building and signing execute entirely client-side.
-- **HelixID never sees an agent's private key.** Onboarding binds a keypair via a signed bootstrap proof; HelixID receives the agent DID, proof payload metadata, and the signature — never the key.
+- **Agent keys are held in custody by HelixID.** Agent self-custody has been retired. The server generates the agent's keypair during onboarding and stores the private key encrypted at rest; the key is never returned over the API and never logged. Signing a presentation is therefore an API call (`POST /v1/agents/:did/vp`), not a local operation.
+- **A private key is never returned to a caller.** Onboarding returns only the agent DID and the id of the credential issued to it. No endpoint discloses key material.
 - **Signed proof of key ownership is required.** No user or agent identity claim is accepted without a cryptographic proof signed by the claimed key holder. There is no password or OTP fallback in the core.
+
+:::caution[This changed]
+Earlier versions of HelixID gave each agent its own key and signed presentations
+client-side, and this page previously stated that private keys never leave the
+agent. That is no longer true. Custody removes key distribution and rotation
+from every agent process, at the cost of the stronger property that only the
+agent itself could ever sign for it. In OSS the signing route is gated by the
+admin key, so anything able to sign for one agent can sign for all of them —
+scope that key accordingly.
+:::
 
 ### Tokens and presentations
 
