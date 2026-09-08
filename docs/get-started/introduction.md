@@ -42,7 +42,7 @@ Two credentials matter, and they come from different parties:
 1. **Agent-Authority VC** — issued once by the HelixID issuer when the agent is onboarded. This is the agent's *ceiling*: the most it could ever be allowed to do.
 2. **Delegated Grant VC** — issued by the service provider after the **user** logs in and consents. This is what the user actually approved, for that one service.
 
-Authority is the **intersection** of the two. A grant can never widen what the issuer gave the agent, and the agent can never act beyond what the user approved. Both credentials live in the agent's local wallet — private keys never leave the agent process.
+Authority is the **intersection** of the two. A grant can never widen what the issuer gave the agent, and the agent can never act beyond what the user approved. HelixID holds the agent's key in custody and signs on its behalf, so the agent never handles key material itself.
 
 This two-party split is the part most often flattened into a single issuer by mistake. It is covered in full in [The Two-Issuer Model](../concepts/two-issuer-model.md).
 
@@ -54,7 +54,7 @@ Walking the diagram:
 
 | Step | What happens |
 | --- | --- |
-| **1–2** | The agent asks its wallet for a Verifiable Presentation (VP). The wallet bundles the credentials and signs — locally, no network call. |
+| **1–2** | The agent asks HelixID for a Verifiable Presentation (VP). The API bundles the credentials and signs with the agent's server-held key. |
 | **3** | The agent makes its normal tool call, with the signed VP attached. |
 | **4** | The service verifies signature, expiry, revocation, and scopes **in-process** — it never calls the issuer to ask whether this particular request is allowed. |
 | **5** | Allowed → the tool runs. Denied → an error, and the action never happens. |
@@ -83,12 +83,12 @@ HelixID is built around three distinct actors. Each has a different relationship
 | Role | Who | What they do |
 | --- | --- | --- |
 | **Platform Operator** | The team building the AI product | Creates issuer DID, mints bootstrap tokens, issues VCs to agents, manages revocation |
-| **AI Agent** | The autonomous software process | Holds a wallet, signs VPs, presents credentials, delegates authority to sub-agents |
+| **AI Agent** | The autonomous software process | Requests VPs from HelixID, presents credentials, delegates authority to sub-agents |
 | **Service Provider** | The API or service the agent calls | Verifies incoming VPs, checks scopes, optionally issues a session JWT or caches the result |
 
 ### Platform Operator
 
-The operator runs the issuer service (self-hosted `helix-api` or CLI for low volume). They never touch agent private keys — they only control the issuance policy.
+The operator runs the issuer service (self-hosted `helix-api` or CLI for low volume). It holds agent keys in custody and signs on their behalf, so the operator controls both issuance policy and the credential that authorizes signing — see [Security model](../security/security-model.md).
 
 ```typescript
 // Operator: mint a bootstrap token for a new agent (authenticated operator call)
