@@ -105,44 +105,73 @@ The operator's private key (issuer signing key) never leaves the issuer service.
 
 ### AI Agent
 
-The agent holds a wallet containing its DID, keypair, and credentials. All signing operations are local — no private key ever leaves the agent process.
+The agent has no wallet and no private key of its own — the API holds the only copy, generated when the agent was onboarded, and signs on the agent's behalf.
+
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
 
 ```typescript
-import { AgentWallet, VPBuilder, delegate } from '@helixid/sdk-js'
+import { HelixClient, verifyVP } from '@helixid/sdk-js'
 
-// load wallet on every startup
-const wallet = await AgentWallet.loadOrCreate('./wallet.enc', process.env.WALLET_PASSPHRASE!)
+const client = new HelixClient('http://localhost:3000', {
+  adminApiKey: 'dev-admin-key-change-in-production',
+})
 
-// build and sign a VP — fully local, no network
-const vp = await new VPBuilder({
-  credentials: [wallet.credentials[0]],   // add a consent grant VC as a second entry when one applies
-  holderDid: wallet.getDID(),
-  userDid: 'did:web:user.example.com',
-  targetService: 'orders-service',
-}).sign(wallet.getPrivateKeyHex(), `${wallet.getDID()}#key-1`)
+// the server signs on the agent's behalf -- it holds the only copy of the key
+const vp = await client.signVP(agentDid, 'orders-service')
 
-// delegate to a sub-agent — fully local, self-signed (Option A)
-const childVC = await delegate(
-  { to: 'did:key:z6Mk...sub-agent', scopes: ['read:orders'], expiresIn: 3600 },
-  wallet,
-)
+const result = await verifyVP(vp, client, { expectedTargetService: 'orders-service' })
+console.log(result.valid, result.agentDid, result.privilegeScopes)
+
+// delegate to a sub-agent — also an API call, same trust boundary as signVP
+const childVC = await client.delegateAuthority(agentDid, 'did:key:z6Mk...sub-agent', ['read:orders'], 3600)
 ```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+from helix_sdk import HelixClient, verify_vp
+
+client = HelixClient(
+    "http://localhost:3000",
+    admin_api_key="dev-admin-key-change-in-production",
+)
+
+# the server signs on the agent's behalf -- it holds the only copy of the key
+vp = client.sign_vp(agent_did, "orders-service")
+
+result = verify_vp(vp, client, expected_target_service="orders-service")
+print(result["valid"], result["agentDid"], result["privilegeScopes"])
+
+# delegate to a sub-agent — also an API call, same trust boundary as sign_vp
+child_vc = client.delegate_authority(agent_did, "did:key:z6Mk...sub-agent", ["read:orders"], 3600)
+```
+
+</TabItem>
+</Tabs>
 
 ### Service Provider
 
-The verifier never calls the issuer's API to authorize a request. `verifyVP()` computes signatures, expiry, delegation chain, and scopes from the presentation itself; the only outbound reads are static documents — the DID document (cached in-process) and, when the VC carries a `credentialStatus`, the status list.
+`verifyVP()` is an API call to `helix-api`'s `POST /v1/vp/verify` — signature check, delegation-chain walk, expiry, target service, and revocation all happen server-side, with `VP_VERIFIED`/`VP_REJECTED` audit logging handled there too. The only thing the verifier does locally is enforce the result and manage its own session/cache.
+
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
 
 ```typescript
-import { verifyVP, SessionManager } from '@helixid/sdk-js'
+import { verifyVP, SessionManager, HelixClient } from '@helixid/sdk-js'
 
-const result = await verifyVP(incomingVP, {
+const client = new HelixClient(process.env.HELIX_API_URL!)
+
+const result = await verifyVP(incomingVP, client, {
   expectedTargetService: 'orders-service',
 })
 
-// replay protection — verifier owns this store
+// replay protection — verifier owns this store; the VP's own expiry bounds the TTL
+const ttl = Math.floor((new Date(incomingVP.expirationDate).getTime() - Date.now()) / 1000)
 const seen = await redis.get(`vpid:${result.vpId}`)
 if (seen) throw new Error('REPLAY_DETECTED')
-await redis.set(`vpid:${result.vpId}`, '1', 'EX', result.expiresInSeconds)
+await redis.set(`vpid:${result.vpId}`, '1', 'EX', ttl)
 
 // scope check — effectiveScopes is the enforcement field: identical to
 // privilegeScopes unless the VP carried a consent grant, in which case it is
@@ -156,8 +185,47 @@ const session = new SessionManager({ secret: process.env.JWT_SECRET!, ttl: 600 }
 const token = await session.issue({ agentDid: result.agentDid, scopes: result.effectiveScopes })
 
 // Option B: cache the VP result by vpId, skip re-verification on repeat calls
-await cache.set(`vp:${result.vpId}`, result, { ttl: result.expiresInSeconds })
+await cache.set(`vp:${result.vpId}`, result, { ttl })
 ```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import os
+from datetime import datetime, timezone
+from helix_sdk import verify_vp, SessionManager, HelixClient
+
+client = HelixClient(os.environ["HELIX_API_URL"])
+
+result = verify_vp(incoming_vp, client, expected_target_service="orders-service")
+
+# replay protection — verifier owns this store; the VP's own expiry bounds the TTL
+expires_at = datetime.fromisoformat(incoming_vp["expirationDate"].replace("Z", "+00:00"))
+ttl = int((expires_at - datetime.now(timezone.utc)).total_seconds())
+seen = redis.get(f"vpid:{result['vpId']}")
+if seen:
+    raise Exception("REPLAY_DETECTED")
+redis.set(f"vpid:{result['vpId']}", "1", ex=ttl)
+
+# scope check — effectiveScopes is the enforcement field: identical to
+# privilegeScopes unless the VP carried a consent grant, in which case it is
+# the intersection of the two
+if "read:orders" not in result["effectiveScopes"]:
+    raise Exception("INSUFFICIENT_SCOPE")
+
+# session handling — verifier's choice, both optional
+
+# Option A: issue a short-lived JWT, agent reuses it for subsequent calls
+session = SessionManager(secret=os.environ["JWT_SECRET"], ttl=600)
+token = session.issue(result["agentDid"], result["effectiveScopes"])
+
+# Option B: cache the VP result by vpId, skip re-verification on repeat calls
+cache.set(f"vp:{result['vpId']}", result, ttl)
+```
+
+</TabItem>
+</Tabs>
 
 Neither session option is required. The verifier can re-verify the VP on every call if preferred. The SDK supports all three paths.
 

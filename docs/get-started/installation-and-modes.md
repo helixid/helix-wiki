@@ -10,6 +10,9 @@ description: Install the SDK, choose a DID method, run the issuer API, and enrol
 
 ## Install
 
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
+
 ```bash
 npm install @helixid/sdk-js
 ```
@@ -31,6 +34,33 @@ pnpm install
 pnpm build
 ```
 
+</TabItem>
+<TabItem value="py" label="Python">
+
+```bash
+pip install helixid-sdk-py
+```
+
+Framework adapters are extras on the same package, not separate installs:
+
+```bash
+pip install "helixid-sdk-py[langchain]"       # LangChain integration
+pip install "helixid-sdk-py[crewai]"          # CrewAI integration
+pip install "helixid-sdk-py[mcp-middleware]"  # MCP auth middleware
+pip install "helixid-sdk-py[all]"             # everything above
+```
+
+There is no Python CLI — the `helix` CLI is deliberately not duplicated per language; see [Project Structure](./project-structure.md#helix-sdk-js).
+
+The SDK lives in [`helix-sdk-py`](https://github.com/helixid/helix-sdk-py). To build from source:
+
+```bash
+pip install -e ".[dev,all]"
+```
+
+</TabItem>
+</Tabs>
+
 ## Choosing a mode
 
 HelixID's trust properties are the same in every mode. What changes is **where the verifier gets the issuer's public key from**, and therefore who has to be reachable at verification time.
@@ -45,7 +75,7 @@ In all three, verification never calls the issuer to authorize a specific reques
 
 ### Local mode (`did:key`)
 
-The lowest-friction path — the one the [5-minute quick start](./quick-start.md#5-minute-path-no-infrastructure) uses. `AgentWallet.create()` generates a `did:key` wallet with no API call at all. A `did:key` carries its public key inside the identifier, so there is nothing to resolve and nothing to host.
+The lowest-friction path — the one the [Fastest path quick start](./quick-start.md#fastest-path-one-running-api) uses. `did:key` carries its public key inside the identifier, so there is nothing to resolve and nothing to host.
 
 `did:key` is development-oriented and cannot express key rotation or service endpoints. Use `did:web` or `did:hedera` for production cross-org trust.
 
@@ -118,25 +148,46 @@ pnpm dev
 
 Onboarding is a single SDK round trip using a one-time **bootstrap token** (single-use, short TTL) delivered out-of-band — an env var, a secret manager, or a CI variable.
 
-```typescript
-import { AgentWallet, HelixClient } from '@helixid/sdk-js'
+Agent self-custody has been retired: the server generates and holds the agent's private key. There is no wallet file — onboarding returns just a DID and a VC id.
 
-const wallet = await AgentWallet.create('./wallet.enc', process.env.WALLET_PASSPHRASE!)
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
+
+```typescript
+import { HelixClient } from '@helixid/sdk-js'
+
 const client = new HelixClient(process.env.HELIX_API_URL!)
 
-const vc = await client.enroll(process.env.HELIX_BOOTSTRAP_TOKEN!, wallet)
+const { agentDid, vcId } = await client.onboardAgent(process.env.HELIX_BOOTSTRAP_TOKEN!)
 
-console.log(wallet.did, vc.id)
+console.log(agentDid, vcId)
 ```
+
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import os
+from helix_sdk import HelixClient
+
+client = HelixClient(os.environ["HELIX_API_URL"])
+
+result = client.onboard_agent(os.environ["HELIX_BOOTSTRAP_TOKEN"])
+
+print(result["agentDid"], result["vcId"])
+```
+
+</TabItem>
+</Tabs>
 
 A bootstrap token is **not** an identity credential. It is a one-time permission slip that says: "whoever presents this may enroll one new agent with these scopes/delegation limits/domains."
 
 Creating that token is a privileged **operator policy action** (not an agent action), because it decides authority:
 
 1. Operator decides policy (`requestedScopes`, `maxDelegationDepth`, `requestedDomains`)
-2. Operator mints token via `POST /v1/enrollment-tokens` (authenticated operator call)
+2. Operator mints token via `POST /v1/enrollment-tokens` (open endpoint, no auth required)
 3. Operator delivers token out-of-band (env var, Kubernetes Secret, CI variable, etc.)
-4. Agent SDK presents token via `client.enroll(...)` and receives VC
+4. Agent SDK presents token via `onboardAgent()` / `onboard_agent()` and receives its DID + VC id
 
 :::info[Why this boundary exists]
 If agents could mint their own bootstrap tokens, identity and authorization would collapse into self-granted authority. The operator owns issuance policy; the agent owns its keys. Neither can do the other's job.
@@ -144,44 +195,63 @@ If agents could mint their own bootstrap tokens, identity and authorization woul
 
 ## Present and verify a VP
 
+A server-custody agent has no wallet to load — it presents by asking the API to sign on its behalf, using the `agentDid` returned from onboarding.
+
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
+
 ```typescript
-import { AgentWallet, VPBuilder, verifyVP } from '@helixid/sdk-js';
+import { HelixClient, verifyVP } from '@helixid/sdk-js';
 
-const wallet = await AgentWallet.load('agent/wallet.enc', 'change-this-passphrase');
-const credential = wallet.credentials[0];
-if (!credential) throw new Error('Wallet has no credential');
+const client = new HelixClient(process.env.HELIX_API_URL!);
 
-const signedVP = await new VPBuilder({
-  credentials: [credential],
-  holderDid: wallet.getDID(),
-  userDid: 'did:web:user.example.com',
-  targetService: 'orders-service',
-}).sign(wallet.getPrivateKeyHex(), `${wallet.getDID()}#key-1`);
+const signedVP = await client.signVP(agentDid, 'orders-service');
 
-const result = await verifyVP(signedVP, {
+const result = await verifyVP(signedVP, client, {
   expectedTargetService: 'orders-service',
 });
 
 console.log(result.valid, result.agentDid, result.privilegeScopes);
 ```
 
-`verifyVP()` runs in-process, with no call to the issuer's authorization logic: VP signature, VC signature, validity window, revocation (when `credentialStatus` exists), target-service checks, and delegation-chain integrity. Only DID resolution and the status-list read go over the network, and both are static-document fetches — pass `statusListResolver` to serve the list from your own cache or storage. `vpId` is returned for caller-managed replay protection. If you need a session JWT bridge, call `POST /v1/vp/verify` with `session: true`.
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import os
+from helix_sdk import HelixClient, verify_vp
+
+client = HelixClient(os.environ["HELIX_API_URL"])
+
+signed_vp = client.sign_vp(agent_did, "orders-service")
+
+result = verify_vp(signed_vp, client, expected_target_service="orders-service")
+
+print(result["valid"], result["agentDid"], result["privilegeScopes"])
+```
+
+</TabItem>
+</Tabs>
+
+Both calls hit `helix-api`: `signVP()`/`sign_vp()` calls `POST /v1/agents/:did/vp` (the server holds the only copy of the key), and `verifyVP()`/`verify_vp()` calls `POST /v1/vp/verify` — signature check, delegation-chain walk, expiry, target-service check, and revocation all happen server-side, with `VP_VERIFIED`/`VP_REJECTED` audit logging handled there too. `vpId` is returned for caller-managed replay protection. If you need a session JWT bridge, call `POST /v1/vp/verify` directly with `session: true` in the body — the SDK's `verifyVP()`/`verify_vp()` wrapper doesn't expose that flag.
 
 ## Delegate authority
 
+For a server-custody agent (the standard path after `onboardAgent()`), delegation is also an API call — the server signs the child VC the same way it signs VPs.
+
+<Tabs groupId="sdk-language">
+<TabItem value="ts" label="TypeScript">
+
 ```typescript
-import { AgentWallet, delegate } from '@helixid/sdk-js';
+import { HelixClient } from '@helixid/sdk-js';
 
-const wallet = await AgentWallet.load('agent/wallet.enc', 'change-this-passphrase');
+const client = new HelixClient(process.env.HELIX_API_URL!);
 
-const delegatedCredential = await delegate(
-  {
-    to: 'did:key:z6Mk...delegatee',
-    scopes: ['read:analytics'],
-    expiresIn: 3600,
-    // optional: fromVC: specific issuer-backed parent VC from wallet
-  },
-  wallet,
+const delegatedCredential = await client.delegateAuthority(
+  agentDid,
+  'did:key:z6Mk...delegatee',
+  ['read:analytics'],
+  3600,
 );
 
 console.log(
@@ -191,4 +261,27 @@ console.log(
 );
 ```
 
-Delegation is **Option A**: Agent A signs the child VC locally, and verifiers enforce chain integrity, scope subset, and max depth from the VC chain itself. The parent/root VC must still be issuer-backed; self-issued VCs are only for the quick-start path and are not accepted as a trusted delegation root. There is no API delegation endpoint. See [Delegation & Sub-Delegation](../concepts/delegation.md).
+</TabItem>
+<TabItem value="py" label="Python">
+
+```python
+import os
+from helix_sdk import HelixClient
+
+client = HelixClient(os.environ["HELIX_API_URL"])
+
+delegated_credential = client.delegate_authority(
+    agent_did, "did:key:z6Mk...delegatee", ["read:analytics"], 3600
+)
+
+print(
+    delegated_credential["id"],
+    delegated_credential["credentialSubject"]["privilegeScopes"],
+    delegated_credential["credentialSubject"]["delegationDepth"],
+)
+```
+
+</TabItem>
+</Tabs>
+
+Verifiers enforce chain integrity, scope subset, and max depth from the VC chain itself regardless of which path signed it. The parent/root VC must still be issuer-backed. This is the custodial counterpart to the wallet-based `delegate()` shown in [Introduction](./introduction.md#ai-agent) — that one needs the delegator's own private key, so it applies to a self-custody wallet, not a server-custody agent onboarded via `onboardAgent()`. See [Delegation & Sub-Delegation](../concepts/delegation.md).

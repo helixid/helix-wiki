@@ -40,8 +40,8 @@ This pair is the part worth understanding first, because the names do not tell y
 ```
 helixid  (@helixid/api)        ← the thing you run
    │
-   │  depends on, as a git dependency:
-   │     "@helixid/core": "github:helixid/helix-core"
+   │  depends on, as a published npm package:
+   │     "@helixid/core": "^2.0.1"
    ▼
 helix-core  (@helixid/core)    ← where the API actually lives
 ```
@@ -68,9 +68,7 @@ Keeping the API implementation in its own package means the layer that makes tru
 :::
 
 :::caution[Don't install `@helixid/core` in an application]
-It is a **server-side dependency**, consumed by the server as a git dependency — not something an agent or verifier installs. If you are building an agent, a verifier, or an integration, you want [`@helixid/sdk-js`](../sdk/sdk-js.md) or the Python SDK.
-
-There is an older `@helixid/core` on npm (0.1.5) from before the split. It is **retired** — do not add it to new code. See [The core layer](../sdk/core.md).
+It is a **server-side dependency**, published on npm but meant to be consumed by the server, not something an agent or verifier installs. If you are building an agent, a verifier, or an integration, you want [`@helixid/sdk-js`](../sdk/sdk-js.md) or the Python SDK. See [The core layer](../sdk/core.md).
 :::
 
 ## `helixid` — the server you run
@@ -99,11 +97,11 @@ It is a pnpm workspace: the root is `@helixid/api`, and `examples/*` are workspa
 
 | Dependency | Required? | Notes |
 | --- | --- | --- |
-| `@helixid/core` | Yes | Pulled as a git dependency from `helixid/helix-core` |
-| `@helixid/sdk-js`, `@helixid/did-hedera`, `@helixid/widget` | Yes | Git dependencies pinned to a specific commit of `helixid/helix-sdk-js` — they are not on npm yet, and each builds during install |
+| `@helixid/core` | Yes | Published npm package from `helix-sdk-js`/`helix-core`'s release, not a git dependency |
+| `@helixid/sdk-js`, `@helixid/did-hedera` | Dev-only | Published npm packages from `helix-sdk-js`, used for this repo's own examples/e2e tests — not needed to run the server itself |
 | Database | Yes — one of two | Postgres, or SQLite as a fast local path that self-initializes its schema with no migration step |
 | Redis | No | Only when a Redis cache adapter is configured explicitly |
-| `@helixid/did-hedera` | Pulled at install | Resolved even in `did:key` mode |
+| `@helixid/did-hedera` | Resolved at runtime | `helix-core` loads it dynamically even in `did:key` mode |
 
 Setup is in [Installation & Modes](./installation-and-modes.md); every variable is in [Environment & Configuration](../self-hosting/configuration.md).
 
@@ -123,15 +121,17 @@ helix-sdk-js/
 └── fixtures/          golden vectors, shared with helix-sdk-py
 ```
 
-| Package | Version | What it is |
-| --- | --- | --- |
-| [`@helixid/sdk-js`](../sdk/sdk-js.md) | 0.1.7 | Wallet, `VPBuilder`, `verifyVP`, `delegate`, `HelixClient` |
-| [`@helixid/cli`](../sdk/cli.md) | 0.1.1 | Operator CLI (`helix`) |
-| `@helixid/mcp-server` | 0.1.0 | Operator workflows exposed as MCP tools |
-| [`@helixid/mcp-middleware`](../sdk/mcp.md) | 0.1.2 | VP verification for your own MCP server |
-| [`@helixid/langchain`](../sdk/langchain.md) | 0.1.1 | LangChain / LangGraph middleware |
-| [`@helixid/widget`](../sdk/widget.md) | 0.1.0 | SP-side consent widget |
-| [`@helixid/did-hedera`](../sdk/did-hedera.md) | 0.1.2 | Optional Hedera DID resolver |
+| Package | What it is |
+| --- | --- |
+| [`@helixid/sdk-js`](../sdk/sdk-js.md) | `HelixClient`, `verifyVP`, `AgentWallet`, `VPBuilder`, `delegate` |
+| [`@helixid/cli`](../sdk/cli.md) | Operator CLI (`helix`) |
+| `@helixid/mcp-server` | Operator workflows exposed as MCP tools |
+| [`@helixid/mcp-middleware`](../sdk/mcp.md) | VP verification for your own MCP server |
+| [`@helixid/langchain`](../sdk/langchain.md) | LangChain / LangGraph middleware |
+| [`@helixid/widget`](../sdk/widget.md) | SP-side consent widget |
+| [`@helixid/did-hedera`](../sdk/did-hedera.md) | Optional Hedera DID resolver |
+
+See each package's npm page for its current version.
 
 Each package carries its own README, test suite, and a `files` allowlist controlling what publishes.
 
