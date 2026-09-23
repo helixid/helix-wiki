@@ -47,9 +47,9 @@ const client = new HelixClient(process.env.HELIX_API_URL!)
 | `checkVCStatus(vc)` | Return `active`, `revoked`, or `expired`. |
 | `fetchSessionPublicKey()` | Fetch the public key for API-issued session JWTs. |
 | `verifySessionToken(token, publicKeyHex)` | Verify an API session token locally. |
-| `enroll(bootstrapToken, wallet)` | Direct enrollment using the wallet DID and signature; stores the returned VC. |
-| `requestOnboardingChallenge(token, domains?)` | Start two-step onboarding and hold the pending keypair. |
-| `completeOnboarding(challengeId, nonce, passphrase, path)` | Sign the challenge, verify onboarding, and save the wallet. |
+| `onboardAgent(enrollmentToken, domains?)` | Redeem an enrollment token; the server generates and holds the agent's key (agent self-custody is retired). |
+| `signVP(did, options)` | Sign a VP on behalf of a server-custody agent. |
+| `delegateAuthority(did, to, scopes, expiresIn, options?)` | Delegate a slice of a server-custody agent's authority to another DID. |
 | `requestUserChallenge(userDid)` | Request a user verification challenge. |
 | `verifyUserChallenge(challengeId, signature)` | Verify a user challenge signature. |
 
@@ -103,7 +103,6 @@ Static constructors:
 | --- | --- |
 | `new VPBuilder({ credentials, holderDid, targetService, userDid? }).sign(privateKeyHex, verificationMethodId)` | Build and sign a short-lived VP for a target service. `credentials` carries 1–2 entries: exactly one agent-authority VC, plus at most one consent grant VC. `userDid` is optional; when omitted, `delegatedBy` is absent from the payload. |
 | `verifyVP(vp, options?)` | Verify VP signature, VC signature, expiry, revocation, target service, and delegation chain. |
-| `delegate(options, wallet)` | Create a delegated VC from a wallet credential with scoped-down privileges. |
 | `checkScope(result, requiredScope)` | Boolean scope check on a `VerifyVPResult`. |
 | `requireScope(result, requiredScope)` | Throw if the required scope is missing. |
 | `new SessionManager({ secret, ttl }).issue(input)` | Issue an HMAC session JWT from a verified agent/scopes. |

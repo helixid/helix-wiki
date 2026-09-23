@@ -69,9 +69,8 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 | Step | Surfaces |
 | --- | --- |
 | Create enrollment token | `POST /v1/enrollment-tokens`, or operator-side `helix vc issue` |
-| Onboard agent | `HelixClient.requestOnboardingChallenge()`, `HelixClient.completeOnboarding()`, `POST /v1/onboard`, `POST /v1/onboard/verify`, `AgentWallet.save()` |
-| Store/read credential | `AgentWallet.addCredential()`, `AgentWallet.credentials`, `AgentWallet.load()` |
-| Issue VP | `VPBuilder.sign()`, `HelixIDMiddleware()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
+| Onboard agent | `HelixClient.onboardAgent()`, `POST /v1/onboard` |
+| Issue VP | `HelixClient.signVP()`, `POST /v1/agents/:did/vp`, or (for local signing by other actors) `VPBuilder.sign()`, `HelixIDMiddleware()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
 | Verify VP | `POST /v1/vp/verify`, `verifyVP()`, `helixidMCPMiddleware()` |
 | Enforce scope | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
 | Optional session | `POST /v1/vp/verify` with `session: true`, `GET /v1/sessions/public-key`, `HelixClient.fetchSessionPublicKey()`, `HelixClient.verifySessionToken()` |
@@ -80,10 +79,8 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 
 | Step | Surfaces |
 | --- | --- |
-| Load parent credential | `AgentWallet.load()`, `AgentWallet.credentials` |
-| Create delegated VC | `delegate(options, wallet)` |
-| Store delegated VC | `AgentWallet.addCredential()`, `AgentWallet.updateCredential()` |
-| Issue VP from delegated VC | `VPBuilder.sign()`, `HelixIDMiddleware()`, `attachHelixVP()` |
+| Create delegated VC | `HelixClient.delegateAuthority()`, `POST /v1/agents/:did/delegate` |
+| Issue VP from delegated VC | `HelixClient.signVP()`, `POST /v1/agents/:did/vp`, or (for local signing by other actors) `VPBuilder.sign()`, `HelixIDMiddleware()`, `attachHelixVP()` |
 | Verify delegation chain | `verifyVP()`, `POST /v1/vp/verify`, `helixidMCPMiddleware()` |
 | Enforce delegated scopes | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
 
@@ -91,7 +88,7 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 
 | Step | Surfaces |
 | --- | --- |
-| Enroll and issue VC | `POST /v1/enrollment-tokens`, `POST /v1/onboard`, `POST /v1/onboard/verify` |
+| Enroll and issue VC | `POST /v1/enrollment-tokens`, `POST /v1/onboard` |
 | Direct issue alternative | `POST /v1/vcs`, `HelixClient.issueVC()`, `helix vc issue` |
 | Publish/read status list | `GET /v1/status-list/:listId`, `POST /v1/status-list`, `HelixClient.getStatusList()`, `helix status-list create` |
 | Revoke VC | `POST /v1/vcs/:vcId/revoke`, `HelixClient.revokeVC()`, `helix revoke` |
