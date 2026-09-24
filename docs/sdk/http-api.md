@@ -62,9 +62,9 @@ Session keys are startup-ephemeral: restarting the API rotates them and invalida
 | Method | Path | Purpose | Input | Output / notes |
 | --- | --- | --- | --- | --- |
 | `POST` | `/v1/enrollment-tokens` | Create an enrollment token for an agent. | `agentName`, `requestedScopes`, optional `requestedDomains`, `maxDelegationDepth`. | Enrollment token / challenge metadata. |
-| `POST` | `/v1/enroll` | Legacy/direct enrollment proof flow. | `bootstrapToken`, `agentDid`, `timestamp`, `proofSignature`. | Issued VC for the agent. |
-| `POST` | `/v1/onboard` | Onboarding step 1: create a challenge for a generated key. | `enrollmentToken`, `publicKeyHex`, optional `domains`. | `challengeId`, nonce, expiry, optional DID-create signing payload. |
-| `POST` | `/v1/onboard/verify` | Onboarding step 2: verify the challenge and issue the VC. | `challengeId`, `signature`, optional `didCreateSignature`. | `agentDid`, `vc`, `vcId`. |
+| `POST` | `/v1/onboard` | Onboard an agent (server-custody): redeem an enrollment token in a single call. | `enrollmentToken`, optional `domains`. | `{ agentDid, vcId }`. Server generates and holds the agent's key; no separate challenge/verify step (agent self-custody is retired). |
+| `POST` | `/v1/agents/:did/vp` | Sign a Verifiable Presentation on behalf of a server-custody agent. | DID path param, VP options. | Signed VP. Requires `x-admin-api-key`. |
+| `POST` | `/v1/agents/:did/delegate` | Delegate a slice of a server-custody agent's authority to another DID. | DID path param, `to`, `scopes`, `expiresIn`, optional `vcId`. | Delegated VC. Requires `x-admin-api-key`. |
 
 Minting an enrollment token is a privileged **operator policy action** — it decides scopes, delegation depth, and domains. See [Installation & Modes](../get-started/installation-and-modes.md#enrolling-an-agent).
 
@@ -81,7 +81,7 @@ Minting an enrollment token is a privileged **operator policy action** — it de
 | --- | --- | --- | --- | --- |
 | `GET` | `/v1/audit-log` | List audit events. **admin** | Optional `eventType`, `since`, `limit`. | Newest-first summaries, including derived `delegatedFrom`, `delegatedTo`, `parentVcId`, and `delegationDepth` for VP verification events when delegation context is available; `attemptedVcId`, `attemptedParentVcId`, `attemptedDelegatedFrom` for rejections; `issuer`, `userDid`, `scopes`, `durability` for consent events. |
 | `POST` | `/v1/audit-log/vp-verification` | Record an API-backed VP verification entry. **admin** | `vpId`, `agentDid`, `result`, optional `targetService`, `reason`, `delegatedFrom`, `delegatedTo`, `delegationChain`, `verifiedAt`, and on rejections `attemptedVcId`, `attemptedParentVcId`, `attemptedDelegatedFrom`. | Audit entry recorded. |
-| `POST` | `/v1/audit-log/consent-granted` | Record an agent-side `CONSENT_GRANTED` entry when an SP-issued delegation grant lands in the wallet. **admin** | `vcId`, `agentDid`, optional `issuer`, `userDid`, `scopes`, `durability`, `grantedAt`. | Audit entry recorded. |
+| `POST` | `/v1/audit-log/consent-granted` | Record an agent-side `CONSENT_GRANTED` entry when an SP-issued delegation grant reaches the agent. **admin** | `vcId`, `agentDid`, optional `issuer`, `userDid`, `scopes`, `durability`, `grantedAt`. | Audit entry recorded. |
 | `POST` | `/v1/audit-log/events` | Generic activity-trail ingestion, used by service providers and agents to record the identity → credential → presentation → verification → authorization → action → result chain. **admin** | `event` plus at least one of `agentDid` / `serviceDid`; optional `correlationId`, `userDid`, `vcId`, `credentialType`, `issuer`, `scopes`, `validUntil`, `credentialStatus`, `serviceName`, `toolName`, `requiredScope`, `effectiveScopes`, `vpId`, `result`, `reason`, `resultSummary`, `timestamp`. | Audit entry recorded. |
 
 ### Event types

@@ -93,11 +93,9 @@ What it deliberately leaves to you: **replay protection** and **the scope requir
 If you verify presentations yourself rather than calling `POST /v1/vp/verify`, you must store every `signedVP.id` you have successfully verified and reject any later request presenting the same `id`. The API's verify endpoint does this for you. Self-verifying without it leaves you open to replay attacks.
 :::
 
-## Self-issued credentials
+## Self-signed credentials
 
-`selfIssueVC()` (and `helix vc self-issue`) create a credential signed by the agent's own key. This exists so the [5-minute quick start](../get-started/quick-start.md) can run with no infrastructure at all.
-
-A self-issued VC carries **no issuer-attested authority**. Verifiers reject it by default — `allowSelfSigned` defaults to `false` — and it is never accepted as a trusted delegation root. It is not valid for production, nor for demos meant to prove trust, revocation, or delegation.
+A VC whose issuer is its own subject carries **no issuer-attested authority**. The SDK and CLI no longer create one (agents hold no keys, so there is nothing to self-sign with), and verifiers reject one by default — `allowSelfSigned` defaults to `false`. It is never accepted as a trusted delegation root.
 
 ## Verifying by hand
 

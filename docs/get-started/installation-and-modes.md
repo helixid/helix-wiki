@@ -284,4 +284,4 @@ print(
 </TabItem>
 </Tabs>
 
-Verifiers enforce chain integrity, scope subset, and max depth from the VC chain itself regardless of which path signed it. The parent/root VC must still be issuer-backed. This is the custodial counterpart to the wallet-based `delegate()` shown in [Introduction](./introduction.md#ai-agent) — that one needs the delegator's own private key, so it applies to a self-custody wallet, not a server-custody agent onboarded via `onboardAgent()`. See [Delegation & Sub-Delegation](../concepts/delegation.md).
+Verifiers enforce chain integrity, scope subset, and max depth from the VC chain itself. The parent/root VC must still be issuer-backed. See [Delegation & Sub-Delegation](../concepts/delegation.md).

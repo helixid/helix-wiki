@@ -20,7 +20,7 @@ npm install @helixid/mcp
 
 | Export | Purpose |
 | --- | --- |
-| `attachHelixVP(toolCall, options)` | Client-side helper that loads the wallet, signs a VP, and attaches `_helixVP` to the MCP tool input. |
+| `attachHelixVP(toolCall, options)` | Client-side helper that requests a server-signed VP (`client.signVP()`) and attaches `_helixVP` to the MCP tool input. |
 | `helixidMCPMiddleware(options)` | Server-side middleware that requires `_helixVP`, verifies it, and enforces optional scopes. |
 
 ## Options
@@ -29,8 +29,8 @@ npm install @helixid/mcp
 
 | Option | Required | Purpose |
 | --- | --- | --- |
-| `walletPassphrase` | Yes | Passphrase for the encrypted wallet file |
-| `walletFilePath` | Yes | Path to the wallet |
+| `client` | Yes | A `HelixClient`; VPs are signed server-side via `client.signVP()` |
+| `agentDid` | Yes | The agent to sign for (returned by `onboardAgent()`) |
 | `targetService` | Yes | Binds the VP to one verifier |
 | `userDid` | No | The user on whose behalf the agent is acting |
 
@@ -38,23 +38,28 @@ npm install @helixid/mcp
 
 | Option | Required | Purpose |
 | --- | --- | --- |
+| `client` | Yes | A `HelixClient`; verification calls `POST /v1/vp/verify` |
 | `requiredScopes` | No | Scopes the caller must hold for the tool to run |
-| `allowSelfSigned` | No | Accept self-issued credentials. Defaults to `false`. Development only. |
+| `allowSelfSigned` | No | Accept credentials whose issuer is their own subject. Defaults to `false`. Development only. |
 
 ## Usage
 
 ```typescript
+import { HelixClient } from '@helixid/sdk-js';
 import { attachHelixVP, helixidMCPMiddleware } from '@helixid/mcp';
 
+const client = new HelixClient(process.env.HELIX_API_URL!, { adminApiKey: process.env.HELIX_ADMIN_API_KEY! });
+
 const requireHelix = helixidMCPMiddleware({
+  client,
   requiredScopes: ['read:orders'],
 });
 
 const outboundCall = await attachHelixVP(
   { name: 'orders.lookup', input: { orderId: 'ORD-1001' } },
   {
-    walletPassphrase: process.env.WALLET_PASSPHRASE!,
-    walletFilePath: './agent-wallet.enc',
+    client,
+    agentDid,
     userDid: 'did:web:user.example.com',
     targetService: 'orders',
   },
