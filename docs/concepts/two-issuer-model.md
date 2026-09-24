@@ -45,7 +45,7 @@ An agent calls a service provider it has never dealt with:
 3. Agent hands off to the SP's **own consent page** — not a HelixID-hosted one.
 4. The user signs in with the SP and sees the scopes on offer (`GET /api/consent/scopes`), then accepts (`POST /api/consent/accept`).
 5. **The SP signs and issues the grant VC itself**, and persists it along with its own status list.
-6. The agent's wallet stores the grant as an **independent credential** — never merged into `delegationChain`.
+6. The grant is registered with the platform as an **independent credential** — never merged into `delegationChain`.
 7. The agent retries, now presenting `[agentVC, grantVC]`.
 8. The SP verifies both and the call succeeds.
 
@@ -98,7 +98,7 @@ These are easy to conflate, and they are different mechanisms with different tru
 | Issued by | The service provider | Another agent |
 | Approved by | The end user, interactively | No user interaction — the parent agent decides |
 | Trust direction | Platform agent → external SP | Agent → agent, inside the platform's own chain |
-| Stored as | An independent credential in the wallet | A link in `delegationChain` |
+| Stored as | An independent credential, passed as `grantVC` when signing | A link in `delegationChain` |
 | Revoked by | The SP, via its own status list | The platform issuer, via the root credential |
 
 See [Delegation & Sub-Delegation](./delegation.md) for the second column.

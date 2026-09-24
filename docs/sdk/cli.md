@@ -20,11 +20,10 @@ Binary: `helix`.
 
 | Command | Purpose | Required options | Optional options |
 | --- | --- | --- | --- |
-| `helix did create` | Create a DID and encrypted wallet. For `--method web`, also creates the SP's initial status list by default. | `--method <web\|hedera\|key>`, `--wallet <path>` | `--domain <domain>`, `--network <testnet\|previewnet\|mainnet>`, `--no-status-list`, `--status-list-length <bits>`, `--status-list-output <path>`, `--status-list-base-url <url>` |
+| `helix did create` | Create a DID and encrypted wallet. For `--method web`, also creates the SP's initial status list by default. | `--method <web\|hedera>`, `--wallet <path>` | `--domain <domain>`, `--network <testnet\|previewnet\|mainnet>`, `--no-status-list`, `--status-list-length <bits>`, `--status-list-output <path>`, `--status-list-base-url <url>` |
 | `helix issuer init` | Validate issuer wallet readiness. | `--wallet <path>` | None |
 | `helix status-list create` | Create a signed BitstringStatusList credential file. | `--length <bits>`, `--output <path>`, `--base-url <url>`, `--wallet <path>` | None |
 | `helix vc issue` | Issue a `HelixAgentCredential` to an agent DID. | `--agent-did <did>`, `--scopes <csv>`, `--expires <duration>`, `--status-list <path>`, `--base-url <url>`, `--wallet <path>` | `--output <path>`, `--max-delegation-depth <depth>` |
-| `helix vc self-issue` | Issue a self-signed dev credential to a wallet. | `--scopes <csv>`, `--expires <duration>`, `--wallet <path>` | None |
 | `helix revoke` | Revoke a credential by flipping its status-list bit. | `--vc-id <vcId>`, `--status-list <path>`, `--wallet <path>` | None |
 | `helix wallet inspect` | Inspect a wallet without printing the private key. | `--wallet <path>` | None |
 

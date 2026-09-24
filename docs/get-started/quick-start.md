@@ -131,7 +131,6 @@ const vp = await client.signVP(agentDid, 'orders-service')
 
 const result = await verifyVP(vp, client, {
   expectedTargetService: 'orders-service',
-  allowSelfSigned: true, // dev only — remove in production
 })
 
 console.log(result.valid, result.agentDid, result.privilegeScopes)
@@ -151,7 +150,6 @@ result = verify_vp(
     vp,
     client,
     expected_target_service="orders-service",
-    allow_self_signed=True,  # dev only — remove in production
 )
 
 print(result["valid"], result["agentDid"], result["privilegeScopes"])

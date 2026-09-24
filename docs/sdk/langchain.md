@@ -22,28 +22,29 @@ npm install @helixid/langchain
 | --- | --- |
 | `HelixIDMiddleware(options)` | Returns a LangChain callback config that injects `_helixVP` into object tool input before tool start. |
 | `HelixIDToolWrapper(tool, options)` | Wraps a structured tool and injects `_helixVP` before calling the original `_call`. |
-| `filterToolsByScope(tools, walletFilePath, walletPassphrase)` | Filters tools by `tool.metadata.requiredScope` or tool name against the wallet's VC scopes. |
+| `filterToolsByScope(tools, client, agentDid)` | Filters tools by `tool.metadata.requiredScope` or tool name against the scopes of the agent's active VC. |
 | `encodeBase64UrlJson(value)` | Encodes a VP or object as base64url JSON. |
-| `selectVC(wallet, targetService)` | Picks the matching credential for a target service, falling back to the first VC. |
-| `ensureObjectInput(input)` | Validates that tool input is an object. |
 
 ## Options
 
 | Option | Required | Purpose |
 | --- | --- | --- |
-| `walletPassphrase` | Yes | Passphrase for the encrypted wallet file |
-| `walletFilePath` | Yes | Path to the wallet |
+| `client` | Yes | A `HelixClient`; VPs are signed server-side via `client.signVP()` |
+| `agentDid` | Yes | The agent to sign for (returned by `onboardAgent()`) |
 | `targetService` | Yes | Binds the VP to one verifier |
 | `userDid` | No | The user on whose behalf the agent is acting |
 
 ## Usage
 
 ```typescript
+import { HelixClient } from '@helixid/sdk-js';
 import { HelixIDMiddleware } from '@helixid/langchain';
 
+const client = new HelixClient(process.env.HELIX_API_URL!, { adminApiKey: process.env.HELIX_ADMIN_API_KEY! });
+
 const middleware = HelixIDMiddleware({
-  walletPassphrase: process.env.WALLET_PASSPHRASE!,
-  walletFilePath: './agent-wallet.enc',
+  client,
+  agentDid,
   userDid: 'did:web:user.example.com',
   targetService: 'orders',
 });

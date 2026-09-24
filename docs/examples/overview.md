@@ -140,7 +140,7 @@ In both paths the verifier owns the policy and infrastructure decisions: scope c
 
 ### Framework middleware
 
-`examples/framework-middleware` exercises the real LangChain and MCP adapters against the live API — a real agent DID created during onboarding, an encrypted wallet, VPs signed locally and verified through the API.
+`examples/framework-middleware` exercises the real LangChain and MCP adapters against the live API — a real agent onboarded server-side, VPs signed by the API on the agent's behalf, and verified through the API.
 
 Set `HELIX_ADMIN_API_KEY` in `.env`, start the server, then:
 
@@ -150,7 +150,7 @@ pnpm example:middleware:langchain
 pnpm example:middleware:mcp
 ```
 
-The setup script writes `examples/framework-middleware/agent/wallet.enc`, which that package ignores. The scripts log DIDs, VC ids, scopes, and verification results, but never private keys or wallet contents.
+The setup script writes `examples/framework-middleware/agent/agent.json`, holding only the agent's DID and credential id — no key material, since the server holds the agent's key. The file is ignored by Git.
 
 ## Running the Console on its own
 

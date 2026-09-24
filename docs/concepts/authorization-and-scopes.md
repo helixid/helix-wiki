@@ -50,7 +50,7 @@ requireScope(result, 'write:orders') // → throws if missing
 The framework adapters wrap the same idea:
 
 - **MCP** — `helixidMCPMiddleware({ requiredScopes: ['read:orders'] })` enforces on the server side before a tool runs.
-- **LangChain** — `filterToolsByScope(tools, walletFilePath, walletPassphrase)` filters a tool list by `tool.metadata.requiredScope` or tool name against the wallet's VC scopes, so the model is never offered a tool it cannot use.
+- **LangChain** — `filterToolsByScope(tools, client, agentDid)` filters a tool list by `tool.metadata.requiredScope` or tool name against the scopes of the agent's active VC, so the model is never offered a tool it cannot use.
 
 ## Scope vocabulary is the service provider's
 

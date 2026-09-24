@@ -12,23 +12,21 @@ When Agent A spawns Agent B to do part of a job, B needs authority to act — an
 
 HelixID's answer: **Agent A issues a scoped, time-bound sub-delegation VC to Agent B.** B presents both its own identity credential and the delegation credential. The verifier validates the full chain. Trust is transitive but bounded — B cannot exceed A's permissions.
 
-## Option A — the agent signs locally
+## Delegating with `delegateAuthority()`
 
-Delegation is **agent-signed**, not issuer-signed:
+Delegation is **agent-signed**, not issuer-signed. Agents hold no keys, so Agent A asks HelixID to sign the child VC with A's custodial key:
 
 ```typescript
-import { AgentWallet, delegate } from '@helixid/sdk-js';
+import { HelixClient } from '@helixid/sdk-js';
 
-const wallet = await AgentWallet.load('agent/wallet.enc', 'change-this-passphrase');
+const client = new HelixClient(process.env.HELIX_API_URL!, { adminApiKey: process.env.HELIX_ADMIN_API_KEY! });
 
-const delegatedCredential = await delegate(
-  {
-    to: 'did:key:z6Mk...delegatee',
-    scopes: ['read:analytics'],
-    expiresIn: 3600,
-    // optional: fromVC: specific issuer-backed parent VC from wallet
-  },
-  wallet,
+const delegatedCredential = await client.delegateAuthority(
+  delegatorDid,                    // Agent A, onboarded with maxDelegationDepth >= 1
+  'did:key:z6Mk...delegatee',      // Agent B
+  ['read:analytics'],              // must be a subset of A's scopes
+  3600,                            // expiresIn, seconds
+  // optional: { vcId } to pick which of A's active VCs to delegate from
 );
 
 console.log(
@@ -38,13 +36,9 @@ console.log(
 );
 ```
 
-Agent A signs the child VC locally with its own key. Verifiers enforce chain integrity, scope subsetting, and max depth from the VC chain itself.
+The API checks scope subsetting and remaining depth before signing, then stores the child VC so Agent B can present it: `client.signVP(delegateeDid, targetService, { vcId: delegatedCredential.id })`. The endpoint is `POST /v1/agents/:did/delegate` (admin-key gated in OSS; `POST /v1/custodial-agents/:agentDid/delegate` with an account token on the hosted API).
 
-:::info[There is no API delegation endpoint]
-Delegation is deliberately a local operation. Requiring an issuer round trip to delegate would put the issuer on the hot path of every agent-to-agent hand-off — precisely the coupling HelixID exists to remove.
-:::
-
-The parent (root) VC must still be **issuer-backed**. Self-issued VCs are only for the quick-start path and are never accepted as a trusted delegation root.
+The parent (root) VC must still be **issuer-backed** — a credential whose issuer is its own subject is never accepted as a trusted delegation root.
 
 ## What the verifier enforces
 
@@ -58,7 +52,7 @@ The parent (root) VC must still be **issuer-backed**. Self-issued VCs are only f
 
 A broken parent breaks the chain: if *any* parent or intermediate VC is expired, revoked, missing, tampered with, invalidly signed, or incorrectly linked, the leaf VP fails verification. There is no partial credit for a chain that is valid up to the last hop.
 
-Because all of this is computed from data inside the presentation, adding a hop costs a local signature verification rather than another issuer round trip. That is where HelixID's latency advantage over per-hop OAuth callbacks actually lives — see [Comparisons](../comparisons/why-not-just-use.md).
+Because all of this is computed from data inside the presentation, adding a hop costs one more signature check inside the same verification rather than another issuer round trip. That is where HelixID's latency advantage over per-hop OAuth callbacks actually lives — see [Comparisons](../comparisons/why-not-just-use.md).
 
 ## Depth limits
 
@@ -76,7 +70,7 @@ A [consent grant](./two-issuer-model.md) from a service provider is **not** part
 | --- | --- | --- |
 | Issued by | Another agent | The service provider |
 | Approved by | The parent agent | The end user, interactively |
-| Lives in | `delegationChain` | The wallet, as a separate credential |
+| Lives in | `delegationChain` | Held alongside the agent VC, passed as `grantVC` when signing |
 | Revoked by | The platform issuer, via the root | The SP, via its own status list |
 
 ## Audit
@@ -86,7 +80,5 @@ VP verification events carry delegation context when it is available: `delegated
 ## Seeing it run
 
 [Use case 4 of the Travel Concierge demo](../examples/travel-concierge.md) exercises this: a Planner agent holding `read:catalog` + `write:orders` delegates only `read:catalog` to a Research agent. Research can search through the delegated child credential, but booking is refused — the child VC never carried `write:orders`.
-
-That path is enforced by the SDK and MCP verifier. The shipped API does not yet expose API-side delegation issuance, nor Console audit for local child-chain verification.
 
 There is also a standalone script, [`examples/delegation-demo.ts`](../examples/delegation-chain.md).

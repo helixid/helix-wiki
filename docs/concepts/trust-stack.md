@@ -32,7 +32,7 @@ Read the mechanics in [The Two-Issuer Model](./two-issuer-model.md).
 
 ## Layer 1 — Identity
 
-Every agent gets a [DID](./dids-and-identity.md) bound to an Ed25519 keypair. The private key is generated inside the agent process, encrypted at rest in the agent's wallet, and never leaves. The issuer never sees it.
+Every agent gets a [DID](./dids-and-identity.md) bound to an Ed25519 keypair. The private key is generated server-side at onboarding and held encrypted in custody; it is never returned to the agent or anyone else, and signing happens through the API.
 
 Because a DID resolves to a public key without a shared secret, a verifier that has never met this agent can still check its signature.
 

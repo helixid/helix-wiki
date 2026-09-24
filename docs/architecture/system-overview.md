@@ -23,18 +23,19 @@ A HelixID deployment has four moving parts. Only the first is required in every 
 
 ```
 1. Agent Created
-   └── DID generated → did:key (local) / did:web (default) / did:hedera (optional plugin)
-   └── Wallet created → stores encrypted private key + credentials
+   └── Onboarding redeems an enrollment token; the server generates the keypair
+   └── DID created → did:key (local) / did:web (default) / did:hedera (optional plugin)
+   └── Private key encrypted and held in server-side custody — never returned
 
 2. Credentials Issued
-   └── Platform signs HelixAgentCredential → delivered to agent wallet
+   └── Platform signs HelixAgentCredential → stored on the platform
        (identity + privilegeScopes = the agent's ceiling, never exceeded downstream)
    └── On first call to a new service provider, the SP issues a
        DelegationGrantCredential after the user consents
 
 3. Agent Requests Action
-   └── Builds a Verifiable Presentation from the relevant credentials,
-       signs it with its private key — locally, no network
+   └── Requests a Verifiable Presentation (signVP); the server signs it
+       with the agent's custodial key over its active credential
 
 4. Verifier Validates
    ├── Verify VP signature using the agent's DID public key
@@ -117,11 +118,7 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 
 Verify a VP once, optionally receive a short-lived token, and reuse it. `POST /v1/vp/verify` with `session: true`, then `GET /v1/sessions/public-key` and `HelixClient.verifySessionToken()`. See [Hybrid 3-Layer Design](./hybrid-layers.md).
 
-### 8. Local dev credential flow
-
-`AgentWallet.create()` → `AgentWallet.selfIssueVC()` (or `helix vc self-issue`) → `VPBuilder.sign()` → `verifyVP({ allowSelfSigned: true })`. Development only — see [Verifiable Credentials](../concepts/verifiable-credentials.md#self-issued-credentials).
-
-### 9. Wallet management
+### 8. Wallet management
 
 `helix wallet inspect` shows wallet contents without printing the private key. Programmatically: `addCredential()`, `updateCredential()`, `removeCredential()`, `listCredentials()`, `getCredential()`, `getLatestCredential()`.
 

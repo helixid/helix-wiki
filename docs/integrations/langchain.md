@@ -19,17 +19,20 @@ npm install @helixid/langchain
 `HelixIDMiddleware` returns a LangChain callback config that injects `_helixVP` into object tool input before the tool starts.
 
 ```typescript
+import { HelixClient } from '@helixid/sdk-js';
 import { HelixIDMiddleware } from '@helixid/langchain';
 
+const client = new HelixClient(process.env.HELIX_API_URL!, { adminApiKey: process.env.HELIX_ADMIN_API_KEY! });
+
 const middleware = HelixIDMiddleware({
-  walletPassphrase: process.env.WALLET_PASSPHRASE!,
-  walletFilePath: './agent-wallet.enc',
+  client,
+  agentDid,
   userDid: 'did:web:user.example.com',
   targetService: 'orders',
 });
 ```
 
-The VP is signed locally from the wallet on each call — no network round trip, and the private key never leaves the process. `selectVC()` picks the credential matching `targetService`, falling back to the first VC in the wallet.
+A fresh VP is requested from the API (`client.signVP()`) on each call. The agent holds no key — HelixID signs with the key it generated at onboarding and picks the agent's active credential itself.
 
 For a single tool rather than a whole run, `HelixIDToolWrapper(tool, options)` wraps a structured tool and injects `_helixVP` before calling the original `_call`.
 
@@ -38,19 +41,15 @@ For a single tool rather than a whole run, `HelixIDToolWrapper(tool, options)` w
 ```typescript
 import { filterToolsByScope } from '@helixid/langchain';
 
-const allowed = await filterToolsByScope(
-  tools,
-  './agent-wallet.enc',
-  process.env.WALLET_PASSPHRASE!,
-);
+const allowed = await filterToolsByScope(tools, client, agentDid);
 ```
 
-Tools are matched by `tool.metadata.requiredScope`, falling back to the tool name, against the scopes in the wallet's credential.
+Tools are matched by `tool.metadata.requiredScope`, falling back to the tool name, against the scopes of the agent's active credential (`client.listVCs()`).
 
 This is worth doing even though the verifier enforces scopes anyway. Filtering removes tools from the model's choices entirely, so it never proposes a call that is going to be refused — which saves a round trip and keeps the model from reasoning its way around a wall it cannot see.
 
 :::note[Filtering is convenience; verification is enforcement]
-`filterToolsByScope` reads the agent's own wallet, so it reflects what the agent *believes* it holds. It is a client-side affordance, not a security boundary. The service still verifies the presentation and enforces scopes on its own side — see [Authorization & Scopes](../concepts/authorization-and-scopes.md).
+`filterToolsByScope` reads the agent's credential on the client side, so it reflects what the agent *believes* it holds. It is a client-side affordance, not a security boundary. The service still verifies the presentation and enforces scopes on its own side — see [Authorization & Scopes](../concepts/authorization-and-scopes.md).
 :::
 
 ## Marking a tool's required scope
