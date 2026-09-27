@@ -90,7 +90,6 @@ Static constructors:
 
 | Method | Purpose |
 | --- | --- |
-| `AgentWallet.create(path, passphrase)` | Load a wallet, or create a new `did:key` wallet file. |
 | `AgentWallet.load(path, passphrase)` | Load a wallet as an `AgentWallet` instance. |
 | `AgentWallet.credentialFromVC(vcId, vc)` | Build wallet metadata from VC JSON. |
 
