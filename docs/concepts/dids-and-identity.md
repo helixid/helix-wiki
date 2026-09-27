@@ -24,7 +24,7 @@ Every agent DID is bound to an Ed25519 keypair generated inside the agent proces
 
 ### `did:key`
 
-The public key is encoded directly in the identifier, so resolution is a pure decode with no network access at all. `AgentWallet.create()` produces a `did:key` wallet with no API call.
+The public key is encoded directly in the identifier, so resolution is a pure decode with no network access at all. Onboarding can mint a custodial agent as `did:key` with no DID-registry write at all — the server generates the key and derives the identifier from it.
 
 `did:key` cannot express key rotation, service endpoints, or deactivation — the identifier *is* the key, so changing the key changes the identity. That makes it excellent for local development, MCP tool authentication, and internal agent-to-tool calls, and unsuitable as the basis for long-lived production cross-org trust.
 

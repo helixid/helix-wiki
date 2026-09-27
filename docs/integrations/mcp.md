@@ -26,6 +26,7 @@ npm install @helixid/mcp
 import { helixidMCPMiddleware } from '@helixid/mcp';
 
 const requireHelix = helixidMCPMiddleware({
+  client, // a HelixClient — verification calls POST /v1/vp/verify
   requiredScopes: ['read:orders'],
 });
 ```
@@ -34,8 +35,9 @@ The middleware requires `_helixVP` on the tool input, verifies it, and enforces 
 
 | Option | Purpose |
 | --- | --- |
+| `client` | A `HelixClient` used to verify the presentation |
 | `requiredScopes` | Scopes the caller must hold for the tool to run |
-| `allowSelfSigned` | Accept self-issued credentials. Defaults to `false`. Development only. |
+| `allowSelfSigned` | Accept credentials whose issuer is their own subject. Defaults to `false`. Development only. |
 
 ## Presenting a credential (client side)
 
@@ -45,15 +47,15 @@ import { attachHelixVP } from '@helixid/mcp';
 const outboundCall = await attachHelixVP(
   { name: 'orders.lookup', input: { orderId: 'ORD-1001' } },
   {
-    walletPassphrase: process.env.WALLET_PASSPHRASE!,
-    walletFilePath: './agent-wallet.enc',
+    client,
+    agentDid,
     userDid: 'did:web:user.example.com',
     targetService: 'orders',
   },
 );
 ```
 
-The wallet is loaded, a fresh VP is signed locally, and `_helixVP` is attached to the tool input. Signing is local on every call — nothing is cached, and the private key never leaves the agent.
+A fresh VP is requested from the API (`client.signVP()`) and `_helixVP` is attached to the tool input. Nothing is cached, and the agent never holds a private key — HelixID signs with the key it generated at onboarding.
 
 ## Seeing the denial path
 

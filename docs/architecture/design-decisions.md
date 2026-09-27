@@ -40,6 +40,10 @@ These are the only libraries permitted for cryptographic operations in the JS/TS
 
 ### Delegation is agent-signed (Option A)
 
+:::note[Superseded]
+Agent self-custody has since been retired: agents hold no keys, so the delegating agent can no longer sign locally. Delegation is now `POST /v1/agents/:did/delegate` (`HelixClient.delegateAuthority()`), which signs the child VC with the delegator's custodial key. The chain itself is unchanged — the child VC is still signed by the delegating agent's key, not the issuer's, and verifiers still enforce integrity, scope subsetting, and max depth from the chain. See [Delegation](../concepts/delegation.md).
+:::
+
 Agent A signs a child VC locally; verifiers enforce chain integrity, scope subsetting, and max depth from the chain itself. There is no API delegation endpoint.
 
 **Why:** requiring an issuer round trip to delegate would put the issuer on the hot path of every agent-to-agent hand-off — the coupling HelixID exists to remove. See [Delegation](../concepts/delegation.md).

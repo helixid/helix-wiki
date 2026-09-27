@@ -8,50 +8,44 @@ description: A standalone script showing one agent sub-delegating a reduced cred
 
 # Delegation Chain
 
-[`examples/delegation-demo.ts`](https://github.com/helixid/helixid/tree/main/examples/delegation-demo.ts) is the smallest complete picture of agent-to-agent delegation: one agent signs a reduced credential for another, and a verifier walks the resulting chain.
+[`examples/delegation-demo.ts`](https://github.com/helixid/helixid/tree/main/examples/delegation-demo.ts) is the smallest complete picture of agent-to-agent delegation: one agent delegates a reduced credential to another, and a verifier walks the resulting chain. Neither agent holds a key — both are onboarded server-side, and HelixID signs on their behalf.
 
 ## The shape of it
 
 ```typescript
-import { AgentWallet, delegate, VPBuilder, verifyVP } from '@helixid/sdk-js';
+import { HelixClient, verifyVP } from '@helixid/sdk-js';
 
-// Parent agent — holds an issuer-backed credential
-const parent = await AgentWallet.load('agent/wallet.enc', process.env.WALLET_PASSPHRASE!);
+const client = new HelixClient(process.env.HELIX_API_URL!, { adminApiKey: process.env.HELIX_ADMIN_API_KEY! });
 
-// Child agent — has a DID, no authority yet
-const child = await AgentWallet.create('./child-wallet.enc', 'child-passphrase');
+// Parent agent — onboarded with an issuer-backed credential and maxDelegationDepth=1
+const parent = await client.onboardAgent(parentEnrollmentToken);
 
-// Parent signs a scoped-down child credential — locally, no API call
-const childVC = await delegate(
-  {
-    to: child.getDID(),
-    scopes: ['read:analytics'],   // must be a subset of the parent's scopes
-    expiresIn: 3600,
-  },
-  parent,
+// Child agent — has a DID, no authority of its own yet
+const child = await client.onboardAgent(childEnrollmentToken);
+
+// HelixID signs a scoped-down child credential with the parent's custodial key
+const childVC = await client.delegateAuthority(
+  parent.agentDid,
+  child.agentDid,
+  ['read:analytics'],   // must be a subset of the parent's scopes
+  3600,
 );
 
-await child.addCredential(childVC);
-
 // The child presents its delegated credential
-const vp = await new VPBuilder({
-  credentials: [childVC],
-  holderDid: child.getDID(),
-  targetService: 'analytics-service',
-}).sign(child.getPrivateKeyHex(), `${child.getDID()}#key-1`);
+const vp = await client.signVP(child.agentDid, 'analytics-service', { vcId: childVC.id });
 
 // The verifier walks the whole chain back to the issuer-backed root
-const result = await verifyVP(vp, { expectedTargetService: 'analytics-service' });
+const result = await verifyVP(vp, client, { expectedTargetService: 'analytics-service' });
 
 console.log(result.valid, result.effectiveScopes);
 ```
 
 ## What to notice
 
-- **`delegate()` never calls the API.** The parent signs with its own key. There is no delegation endpoint, by design — see [Design Decisions](../architecture/design-decisions.md).
-- **The child's scopes must be a subset.** Asking for a scope the parent does not hold produces a credential the verifier rejects on chain validation.
-- **The root must be issuer-backed.** A self-issued VC is never accepted as a delegation root, so this script needs a real enrolled parent credential.
-- **`delegationDepth` increments, `maxDelegationDepth` bounds it.** A parent issued with `--max-delegation-depth 1` produces children that cannot delegate further.
+- **The child VC is signed by the parent's key, not the issuer's.** HelixID holds the parent's key and signs on its behalf; the chain is still agent-signed.
+- **The child's scopes must be a subset.** Asking for a scope the parent does not hold is refused with `SCOPE_ESCALATION_DENIED` before anything is signed.
+- **The root must be issuer-backed.** A credential whose issuer is its own subject is never accepted as a delegation root.
+- **`delegationDepth` increments, `maxDelegationDepth` bounds it.** A parent issued with `maxDelegationDepth` 1 produces children that cannot delegate further — the attempt is refused with `MAX_DELEGATION_DEPTH_EXCEEDED`.
 - **Revoking the root revokes the branch.** There is no separate revocation for the child.
 
 ## Running it against real agents

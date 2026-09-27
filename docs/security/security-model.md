@@ -43,7 +43,7 @@ These are the verifier's, because they depend on your storage and your threat mo
 | **Passing `expectedTargetService`** | A VP captured by service A can be replayed against service B. |
 | **Enforcing on `effectiveScopes`** | Enforcing on `privilegeScopes` grants the agent's ceiling instead of what the user consented to. |
 | **Business policy** | `result.valid === true` is not authorization. Verified ≠ trusted. |
-| **Leaving `allowSelfSigned` at `false`** | Any agent can self-issue itself unlimited scopes. |
+| **Leaving `allowSelfSigned` at `false`** | Anyone holding a key can sign a credential to themselves with unlimited scopes. |
 
 ## Key custody
 
@@ -97,7 +97,7 @@ scope that key accordingly.
 
 - **Delegation never increases authority.** A delegated VC may contain only scopes that are a subset of the delegator's active VC scopes. Any scope outside the parent set is rejected.
 - **Delegation depth is explicit and enforced.** Root agent VCs default to `maxDelegationDepth = 0` — delegation is impossible unless the agent owner explicitly allows it. Each child increments `delegationDepth`, and delegation fails once it would reach the maximum.
-- **Root VCs are signed by the issuer only.** Agents may self-sign delegation VCs granting a subset of their own scopes, but those carry no issuer trust anchor and are validated by chain integrity alone.
+- **Root VCs are signed by the issuer only.** Delegation VCs are signed with the delegating agent's custodial key and grant a subset of its own scopes; they carry no issuer trust anchor and are validated by chain integrity alone.
 - **A broken parent breaks the chain.** If any parent or intermediate VC is expired, revoked, missing, tampered with, invalidly signed, or incorrectly linked, the leaf VP fails verification.
 - **Self-signed VCs are rejected in production by default.** `verifyVP()` rejects a VC whose issuer equals its `credentialSubject.id` unless `allowSelfSigned: true` is passed explicitly. Framework adapters must never pass it in production.
 
@@ -172,9 +172,6 @@ If you run HelixID in production on a pinned older release and need backport gui
 
 ## Development-only paths
 
-Two features exist purely for local development and must never be enabled in production:
-
-- **`selfIssueVC()` / `helix vc self-issue`** — carries no issuer-attested authority, and is never accepted as a trusted delegation root.
-- **`allowSelfSigned: true`** — makes a verifier accept those credentials. Defaults to `false`; leave it there.
+**`allowSelfSigned: true`** exists purely for local development and must never be enabled in production. It makes a verifier accept a credential whose issuer is its own subject, which carries no issuer-attested authority. It defaults to `false`; leave it there.
 
 `HEDERA_E2E_TESTNET=true` allows end-to-end tests to write to Hedera testnet, and must never be set in standard CI.
