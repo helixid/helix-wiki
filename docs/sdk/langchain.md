@@ -3,12 +3,12 @@ id: langchain
 title: "@helixid/langchain"
 sidebar_label: "@helixid/langchain"
 sidebar_position: 4
-description: LangChain and LangGraph middleware, tool wrappers, and scope-based tool filtering.
+description: LangChain and LangGraph tool wrapper, per-call VP signing, and scope-based tool filtering.
 ---
 
 # `@helixid/langchain`
 
-HelixID middleware for **LangChain and LangGraph** — injects a signed presentation into tool calls, and filters the tool list by the scopes the agent actually holds.
+HelixID adapter for **LangChain and LangGraph** — signs a fresh presentation for every tool call (sent as the `X-Helix-VP` header, never in tool arguments), and filters the tool list by the scopes the agent actually holds.
 
 ```bash
 npm install @helixid/langchain
@@ -20,33 +20,36 @@ npm install @helixid/langchain
 
 | Export | Purpose |
 | --- | --- |
-| `HelixIDMiddleware(options)` | Returns a LangChain callback config that injects `_helixVP` into object tool input before tool start. |
-| `HelixIDToolWrapper(tool, options)` | Wraps a structured tool and injects `_helixVP` before calling the original `_call`. |
-| `filterToolsByScope(tools, walletFilePath, walletPassphrase)` | Filters tools by `tool.metadata.requiredScope` or tool name against the wallet's VC scopes. |
+| `HelixIDToolWrapper(tool, options)` | Wraps a structured tool so each call signs a fresh VP; tool input is passed through unchanged. |
+| `currentHelixVPHeaders()` | Inside a wrapped call, returns `{ 'X-Helix-VP': <base64url VP> }` for the tool's outbound request; empty outside one. |
+| `filterToolsByScope(tools, client, agentDid)` | Filters tools by `tool.metadata.requiredScope` or tool name against the scopes of the agent's active VC. |
 | `encodeBase64UrlJson(value)` | Encodes a VP or object as base64url JSON. |
-| `selectVC(wallet, targetService)` | Picks the matching credential for a target service, falling back to the first VC. |
-| `ensureObjectInput(input)` | Validates that tool input is an object. |
 
 ## Options
 
+`HelixIDToolWrapperOptions` (alias `LangChainMiddlewareOptions`):
+
 | Option | Required | Purpose |
 | --- | --- | --- |
-| `walletPassphrase` | Yes | Passphrase for the encrypted wallet file |
-| `walletFilePath` | Yes | Path to the wallet |
+| `client` | Yes | `HelixClient` that signs the VP (`client.signVP()`) |
+| `agentDid` | Yes | The agent's DID |
 | `targetService` | Yes | Binds the VP to one verifier |
 | `userDid` | No | The user on whose behalf the agent is acting |
 
 ## Usage
 
 ```typescript
-import { HelixIDMiddleware } from '@helixid/langchain';
+import { HelixIDToolWrapper, currentHelixVPHeaders } from '@helixid/langchain';
 
-const middleware = HelixIDMiddleware({
-  walletPassphrase: process.env.WALLET_PASSPHRASE!,
-  walletFilePath: './agent-wallet.enc',
-  userDid: 'did:web:user.example.com',
+const wrapped = HelixIDToolWrapper(orderTool, {
+  client,
+  agentDid: process.env.AGENT_DID!,
   targetService: 'orders',
+  userDid: 'did:web:user.example.com',
 });
+
+// inside orderTool's _call:
+await fetch(url, { headers: { ...currentHelixVPHeaders() } });
 ```
 
-`filterToolsByScope()` is worth using alongside the middleware: it keeps tools the agent has no scope for out of the model's choices entirely, so the model never proposes a call that is going to be refused. See [LangChain Integration](../integrations/langchain.md).
+`filterToolsByScope()` is worth using alongside the wrapper: it keeps tools the agent has no scope for out of the model's choices entirely, so the model never proposes a call that is going to be refused. See [LangChain Integration](../integrations/langchain.md).
