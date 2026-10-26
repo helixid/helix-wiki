@@ -16,22 +16,23 @@ npm install @helixid/langchain
 
 ## Attaching a presentation to tool calls
 
-`HelixIDMiddleware` returns a LangChain callback config that injects `_helixVP` into object tool input before the tool starts.
+`HelixIDToolWrapper(tool, options)` wraps a structured tool so every call signs a fresh VP. The tool input is passed through unchanged — the VP never travels in tool arguments. Inside the tool, `currentHelixVPHeaders()` returns `{ 'X-Helix-VP': <base64url VP> }` to send on the tool's outbound request.
 
 ```typescript
-import { HelixIDMiddleware } from '@helixid/langchain';
+import { HelixIDToolWrapper, currentHelixVPHeaders } from '@helixid/langchain';
 
-const middleware = HelixIDMiddleware({
-  walletPassphrase: process.env.WALLET_PASSPHRASE!,
-  walletFilePath: './agent-wallet.enc',
-  userDid: 'did:web:user.example.com',
+const lookupOrder = HelixIDToolWrapper(orderTool, {
+  client,                       // HelixClient
+  agentDid: process.env.AGENT_DID!,
   targetService: 'orders',
+  userDid: 'did:web:user.example.com',
 });
+
+// inside orderTool's _call:
+await fetch(`${ORDERS_API}/orders/${input.orderId}`, { headers: { ...currentHelixVPHeaders() } });
 ```
 
-The VP is signed locally from the wallet on each call — no network round trip, and the private key never leaves the process. `selectVC()` picks the credential matching `targetService`, falling back to the first VC in the wallet.
-
-For a single tool rather than a whole run, `HelixIDToolWrapper(tool, options)` wraps a structured tool and injects `_helixVP` before calling the original `_call`.
+The VP is signed server-side via `client.signVP()` on each call; `currentHelixVPHeaders()` is empty outside a wrapped call.
 
 ## Filtering tools by scope
 

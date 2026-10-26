@@ -10,7 +10,7 @@ description: The conventions a HelixID pull request is held to, and where the au
 
 The authoritative rules live in each repository's own `CONTRIBUTING.md` — start with [`helixid/helixid`](https://github.com/helixid/helixid/blob/main/CONTRIBUTING.md). This page is a summary so you know what to expect before you open a PR; where the two differ, the repository wins.
 
-Two sets of rules matter most and are documented here in full: the [security axioms](../security/security-model.md#security-axioms), which are explicitly non-negotiable — a PR that violates one is rejected without exception — and the [audit log contract](../security/security-model.md#audit-log-contract). Architectural decisions are recorded in [`docs/decisions.md`](https://github.com/helixid/helixid/blob/main/docs/decisions.md), alongside per-topic decision and proposal documents in the same directory.
+Two sets of rules matter most and are documented here in full: the [security axioms](../security/security-model.md#security-axioms), which are explicitly non-negotiable — a PR that violates one is rejected without exception — and the [audit log contract](../security/security-model.md#audit-log-contract).
 
 ## Branches and commits
 

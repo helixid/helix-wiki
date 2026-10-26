@@ -16,7 +16,7 @@ npm install @helixid/mcp
 
 ## The full picture
 
-<Figure src="img/helixid-flow.svg" light width={1320} height={690} fullSrc="img/helixid-flow-full.svg" alt="HelixID flow. Setup: the HelixID issuer signs a one-time Agent-Authority VC that sets the scope ceiling, and the service provider signs a Delegated Grant VC after the user logs in and consents; both are stored in the agent wallet. Then, in sequence: 1, the agent requests a VP from its wallet; 2, the wallet returns a signed VP; 3, the agent makes its tool call with _helixVP attached; 4, the MCP server verifies signature, expiry, revocation and scopes in-process with no network hop, in about 1 to 6 milliseconds cached; 5, allow executes the tool, deny returns an error; 6, the agent SDK asynchronously logs VP_VERIFIED or VP_REJECTED to the HelixID audit log.">
+<Figure src="img/helixid-flow.svg" light width={1320} height={690} fullSrc="img/helixid-flow-full.svg" alt="HelixID flow. Setup: the HelixID issuer signs a one-time Agent-Authority VC that sets the scope ceiling, and the service provider signs a Delegated Grant VC after the user logs in and consents; both are stored in the agent wallet. Then, in sequence: 1, the agent requests a VP from its wallet; 2, the wallet returns a signed VP; 3, the agent makes its tool call with the VP in the X-Helix-VP header or MCP _meta['x-helix-vp'], never in the tool arguments; 4, the MCP server verifies signature, expiry, revocation and scopes in-process with no network hop, in about 1 to 6 milliseconds cached; 5, allow executes the tool, deny returns an error; 6, the agent SDK asynchronously logs VP_VERIFIED or VP_REJECTED to the HelixID audit log.">
   Steps 3 to 5 are what the two exports below do. <code>attachHelixVP</code> produces the call in step 3; <code>helixidMCPMiddleware</code> is step 4, and decides step 5.
 </Figure>
 
@@ -26,14 +26,19 @@ npm install @helixid/mcp
 import { helixidMCPMiddleware } from '@helixid/mcp';
 
 const requireHelix = helixidMCPMiddleware({
+  client,                        // HelixClient
   requiredScopes: ['read:orders'],
 });
+
+// in the tools/call handler:
+await requireHelix({ name, input: args, _meta: request.params._meta, headers: req.headers });
 ```
 
-The middleware requires `_helixVP` on the tool input, verifies it, and enforces the listed scopes. A call arriving without a valid presentation is refused **before the tool runs** — the action never happens, and the refusal is recorded.
+The middleware reads the VP from the request's `params._meta["x-helix-vp"]` (any transport, including stdio) or, over HTTP, the `X-Helix-VP` header — never from the tool arguments. It verifies it and enforces the listed scopes. A call arriving without a valid presentation is refused **before the tool runs** — the action never happens, and the refusal is recorded.
 
 | Option | Purpose |
 | --- | --- |
+| `client` | `HelixClient` used to verify the VP |
 | `requiredScopes` | Scopes the caller must hold for the tool to run |
 | `allowSelfSigned` | Accept self-issued credentials. Defaults to `false`. Development only. |
 
@@ -42,18 +47,20 @@ The middleware requires `_helixVP` on the tool input, verifies it, and enforces 
 ```typescript
 import { attachHelixVP } from '@helixid/mcp';
 
-const outboundCall = await attachHelixVP(
+const call = await attachHelixVP(
   { name: 'orders.lookup', input: { orderId: 'ORD-1001' } },
   {
-    walletPassphrase: process.env.WALLET_PASSPHRASE!,
-    walletFilePath: './agent-wallet.enc',
+    client,                      // HelixClient
+    agentDid: process.env.AGENT_DID!,
     userDid: 'did:web:user.example.com',
     targetService: 'orders',
   },
 );
+
+await mcpClient.callTool({ name: call.name!, arguments: call.input, _meta: call._meta });
 ```
 
-The wallet is loaded, a fresh VP is signed locally, and `_helixVP` is attached to the tool input. Signing is local on every call — nothing is cached, and the private key never leaves the agent.
+A fresh VP is signed server-side (`client.signVP()`) on every call and set as `call._meta["x-helix-vp"]` (base64url JSON); `input` is left untouched. Pass `_meta` as the MCP request's `params._meta`.
 
 ## Seeing the denial path
 

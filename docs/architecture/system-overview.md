@@ -71,7 +71,7 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 | Create enrollment token | `POST /v1/enrollment-tokens`, or operator-side `helix vc issue` |
 | Onboard agent | `HelixClient.requestOnboardingChallenge()`, `HelixClient.completeOnboarding()`, `POST /v1/onboard`, `POST /v1/onboard/verify`, `AgentWallet.save()` |
 | Store/read credential | `AgentWallet.addCredential()`, `AgentWallet.credentials`, `AgentWallet.load()` |
-| Issue VP | `VPBuilder.sign()`, `HelixIDMiddleware()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
+| Issue VP | `VPBuilder.sign()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
 | Verify VP | `POST /v1/vp/verify`, `verifyVP()`, `helixidMCPMiddleware()` |
 | Enforce scope | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
 | Optional session | `POST /v1/vp/verify` with `session: true`, `GET /v1/sessions/public-key`, `HelixClient.fetchSessionPublicKey()`, `HelixClient.verifySessionToken()` |
@@ -83,7 +83,7 @@ Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP AP
 | Load parent credential | `AgentWallet.load()`, `AgentWallet.credentials` |
 | Create delegated VC | `delegate(options, wallet)` |
 | Store delegated VC | `AgentWallet.addCredential()`, `AgentWallet.updateCredential()` |
-| Issue VP from delegated VC | `VPBuilder.sign()`, `HelixIDMiddleware()`, `attachHelixVP()` |
+| Issue VP from delegated VC | `VPBuilder.sign()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
 | Verify delegation chain | `verifyVP()`, `POST /v1/vp/verify`, `helixidMCPMiddleware()` |
 | Enforce delegated scopes | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
 
