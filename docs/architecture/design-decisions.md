@@ -8,9 +8,9 @@ description: The architectural decisions behind HelixID and the reasoning record
 
 # Design Decisions
 
-HelixID keeps an append-only decision log in the code repository at [`docs/decisions.md`](https://github.com/helixid/helixid/blob/main/docs/decisions.md). Every new dependency, significant architectural decision, and deviation from the project constitution is recorded there. Entries are never deleted or modified.
+HelixID keeps an append-only decision log. Every new dependency, significant architectural decision, and deviation from the project constitution is recorded there. Entries are never deleted or modified.
 
-This page summarizes the decisions that shape what you see in the API. For the full reasoning and the alternatives that were rejected, read the log.
+This page summarizes the decisions that shape what you see in the API.
 
 ## Trust and cryptography
 

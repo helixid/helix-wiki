@@ -19,7 +19,7 @@ If you are building against HelixID, you want [`@helixid/sdk-js`](./sdk-js.md) o
 :::caution[The `@helixid/core` on npm is retired]
 There is an older `@helixid/core` published to npm at **0.1.5**. It predates the repository split and is **retired** — it was withdrawn once its only second consumer stopped needing it locally.
 
-The current package reuses the name for a different purpose and is consumed from source, not from npm. Do not add the npm package to new code, and remove it if you have it. The reasoning is recorded in [`proposal-retire-core-package.md`](https://github.com/helixid/helixid/blob/main/docs/proposal-retire-core-package.md).
+The current package reuses the name for a different purpose and is consumed from source, not from npm. Do not add the npm package to new code, and remove it if you have it.
 :::
 
 ## What lives here
