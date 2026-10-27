@@ -82,11 +82,13 @@ const config: Config = {
       sidebar: { hideable: true, autoCollapseCategories: false },
     },
     navbar: {
-      title: 'HelixID',
+      // The lockup carries the wordmark, so the navbar has no text title.
       logo: {
         alt: 'HelixID',
-        src: 'img/logo.png',
-        srcDark: 'img/logo-dark.png',
+        src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
+        width: 155,
+        height: 28,
       },
       items: [
         { type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs' },

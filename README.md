@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/img/logo.png" alt="HelixID" width="88">
+  <img src="static/img/helixid-tile.png" alt="HelixID" width="88">
 </p>
 
 <h1 align="center">HelixID Documentation</h1>
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://docs.helixid.dev"><img src="https://img.shields.io/badge/docs-docs.helixid.dev-ff6a00.svg" alt="Docs"></a>
+  <a href="https://docs.helixid.dev"><img src="https://img.shields.io/badge/docs-docs.helixid.dev-0fb5ae.svg" alt="Docs"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
   <a href="https://github.com/helixid/helixid"><img src="https://img.shields.io/badge/main%20repo-helixid%2Fhelixid-181717.svg" alt="Main repo"></a>
 </p>
