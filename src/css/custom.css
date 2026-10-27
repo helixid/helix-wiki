@@ -1,36 +1,45 @@
 /**
  * HelixID wiki theme.
- * Tokens sampled from the live helixid.dev bundle (Geist / Geist Mono,
- * --color-accent #ff6a00, --color-ink #0a0a0a) and the HelixID brand
- * flow diagram. Black-led, high contrast, developer-serious.
+ *
+ * Brand palette (2026-10 identity refresh): teal accent on near-black navy
+ * ink, cool neutrals. Values are taken from the shipped logo set
+ * (helixid-icon-f / helixid-lockup-f-urbanist): light surfaces use teal
+ * #0FB5AE with ink #0B1220; dark surfaces use teal #2DD4BF with ink #F5F7FA
+ * on a #0B1220 ground. The wordmark is set in Urbanist (outlined in the
+ * SVG); UI type stays Geist / Geist Mono to match helixid.dev.
+ *
+ * Pure teal is decorative only on light backgrounds (2.6:1 on white). Text
+ * and links use --helix-accent-strong, a darker teal that clears WCAG AA.
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --helix-accent: #ff6a00;
-  --helix-accent-strong: #c7510a;
-  --helix-accent-soft: #fff1e8;
-  --helix-ink: #0a0a0a;
-  --helix-ink-muted: #5a5a5a;
-  --helix-hairline: #ececec;
+  --helix-accent: #0fb5ae;
+  --helix-accent-strong: #0a7c77;
+  --helix-accent-soft: #e6f8f6;
+  --helix-ink: #0b1220;
+  --helix-ink-muted: #5b6b7a;
+  --helix-hairline: #e3e8ee;
+  --helix-surface: #f1f4f7;
 
   --ifm-font-family-base: 'Geist', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', Roboto, sans-serif;
   --ifm-font-family-monospace: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, 'Liberation Mono', monospace;
 
-  --ifm-color-primary: #c7510a;
-  --ifm-color-primary-dark: #b34909;
-  --ifm-color-primary-darker: #a94508;
-  --ifm-color-primary-darkest: #8b3907;
-  --ifm-color-primary-light: #db590b;
-  --ifm-color-primary-lighter: #e55d0c;
-  --ifm-color-primary-lightest: #ff6a00;
+  --ifm-color-primary: #0a7c77;
+  --ifm-color-primary-dark: #09706b;
+  --ifm-color-primary-darker: #086a65;
+  --ifm-color-primary-darkest: #075753;
+  --ifm-color-primary-light: #0b8883;
+  --ifm-color-primary-lighter: #0c8e89;
+  --ifm-color-primary-lightest: #0fb5ae;
 
   --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: var(--helix-surface);
   --ifm-heading-color: var(--helix-ink);
-  --ifm-font-color-base: #1c1917;
+  --ifm-font-color-base: #1e293b;
   --ifm-toc-border-color: var(--helix-hairline);
   --ifm-hr-border-color: var(--helix-hairline);
 
@@ -40,31 +49,35 @@
   --ifm-navbar-height: 62px;
   --ifm-global-radius: 8px;
 
-  --docusaurus-highlighted-code-line-bg: rgba(255, 106, 0, 0.12);
+  --docusaurus-highlighted-code-line-bg: rgba(15, 181, 174, 0.12);
 }
 
 [data-theme='dark'] {
-  --helix-ink: #f5f4f2;
-  --helix-ink-muted: #a1a1a1;
-  --helix-hairline: #262626;
+  --helix-accent: #2dd4bf;
+  --helix-accent-strong: #2dd4bf;
+  --helix-accent-soft: rgba(45, 212, 191, 0.14);
+  --helix-ink: #f5f7fa;
+  --helix-ink-muted: #aeb8c4;
+  --helix-hairline: #1e2a3d;
+  --helix-surface: #111a2b;
 
-  /* Orange reads brighter on black — use the pure accent as primary here. */
-  --ifm-color-primary: #ff6a00;
-  --ifm-color-primary-dark: #e65f00;
-  --ifm-color-primary-darker: #d95a00;
-  --ifm-color-primary-darkest: #b34a00;
-  --ifm-color-primary-light: #ff7d1f;
-  --ifm-color-primary-lighter: #ff862e;
-  --ifm-color-primary-lightest: #ffa05c;
+  /* Teal reads bright on navy — the lighter brand tint is the primary here. */
+  --ifm-color-primary: #2dd4bf;
+  --ifm-color-primary-dark: #22c7b2;
+  --ifm-color-primary-darker: #1fbba7;
+  --ifm-color-primary-darkest: #189a8a;
+  --ifm-color-primary-light: #45dbc8;
+  --ifm-color-primary-lighter: #5ee2d1;
+  --ifm-color-primary-lightest: #8aebde;
 
-  --ifm-background-color: #0a0a0a;
-  --ifm-background-surface-color: #121212;
+  --ifm-background-color: #0b1220;
+  --ifm-background-surface-color: var(--helix-surface);
   --ifm-heading-color: var(--helix-ink);
-  --ifm-font-color-base: #d6d3d1;
+  --ifm-font-color-base: #c5cdd8;
   --ifm-toc-border-color: var(--helix-hairline);
   --ifm-hr-border-color: var(--helix-hairline);
 
-  --docusaurus-highlighted-code-line-bg: rgba(255, 106, 0, 0.18);
+  --docusaurus-highlighted-code-line-bg: rgba(45, 212, 191, 0.16);
 }
 
 /* ---------- Navbar ---------- */
@@ -88,16 +101,17 @@
 }
 
 [data-theme='dark'] .navbar {
-  background-color: rgba(10, 10, 10, 0.85);
+  background-color: rgba(11, 18, 32, 0.85);
 }
 
-.navbar__title {
-  font-weight: 600;
-  letter-spacing: -0.02em;
+/* The logo is the full lockup (mark + HELIXID wordmark), so no text title. */
+.navbar__logo {
+  display: flex;
+  align-items: center;
 }
 
 .navbar__logo img {
-  height: 26px;
+  height: 28px;
   width: auto;
 }
 
@@ -130,7 +144,7 @@ code {
 }
 
 [data-theme='dark'] code {
-  background-color: #161616;
+  background-color: #111a2b;
 }
 
 div[class^='codeBlockContainer'] {
@@ -177,7 +191,7 @@ div[class^='codeBlockContainer'] {
 }
 
 [data-theme='dark'] .markdown table tr:nth-child(2n) {
-  background-color: #101010;
+  background-color: #0f1727;
 }
 
 /* ---------- Sidebar ---------- */
@@ -202,8 +216,8 @@ div[class^='codeBlockContainer'] {
 }
 
 [data-theme='dark'] .menu__link--active:not(.menu__link--sublist) {
-  background-color: rgba(255, 106, 0, 0.14);
-  color: var(--ifm-color-primary-lightest);
+  background-color: var(--helix-accent-soft);
+  color: var(--ifm-color-primary-lighter);
 }
 
 .theme-doc-sidebar-container {
@@ -241,8 +255,8 @@ div[class^='codeBlockContainer'] {
 }
 
 .helix-badge--planned {
-  background-color: rgba(255, 106, 0, 0.12);
-  border-color: rgba(255, 106, 0, 0.42);
+  background-color: rgba(15, 181, 174, 0.12);
+  border-color: rgba(15, 181, 174, 0.45);
   color: var(--helix-accent-strong);
 }
 
@@ -253,9 +267,9 @@ div[class^='codeBlockContainer'] {
 }
 
 .helix-badge--parked {
-  background-color: rgba(120, 113, 108, 0.14);
-  border-color: rgba(120, 113, 108, 0.4);
-  color: #57534e;
+  background-color: rgba(100, 116, 139, 0.14);
+  border-color: rgba(100, 116, 139, 0.4);
+  color: #475569;
 }
 
 [data-theme='dark'] .helix-badge--shipped {
@@ -263,7 +277,7 @@ div[class^='codeBlockContainer'] {
 }
 
 [data-theme='dark'] .helix-badge--planned {
-  color: #ff9d52;
+  color: #5ee2d1;
 }
 
 [data-theme='dark'] .helix-badge--progress {
@@ -271,7 +285,7 @@ div[class^='codeBlockContainer'] {
 }
 
 [data-theme='dark'] .helix-badge--parked {
-  color: #a8a29e;
+  color: #94a3b8;
 }
 
 /* Roadmap checkbox lists render as plain, unindented status rows. */
@@ -302,16 +316,16 @@ div[class^='codeBlockContainer'] {
 
 /*
  * Diagrams that ship their own light background (the HelixID flow SVG paints
- * #FDFBF7). Keep that ground in both themes rather than letting a dark page
+ * #F7F9FB). Keep that ground in both themes rather than letting a dark page
  * show through and wreck the contrast of the dark text inside the artwork.
  */
 .helix-figure--light img {
-  background-color: #fdfbf7;
+  background-color: #f7f9fb;
 }
 
 [data-theme='dark'] .helix-figure--light {
-  /* Warm the border so a cream panel doesn't sit on black with a hard edge. */
-  border-color: #3a3430;
+  /* Lift the border so a light panel doesn't sit on navy with a hard edge. */
+  border-color: #2a3650;
 }
 
 /*
@@ -333,20 +347,27 @@ div[class^='codeBlockContainer'] {
 .helix-figure figcaption {
   padding: 0.7rem 0.9rem;
   border-top: 1px solid var(--helix-hairline);
-  background-color: var(--ifm-background-surface-color, #fafafa);
+  background-color: var(--ifm-background-surface-color, #f1f4f7);
   color: var(--helix-ink-muted);
   font-size: 0.85rem;
   line-height: 1.55;
 }
 
 [data-theme='dark'] .helix-figure figcaption {
-  background-color: #121212;
-  border-top-color: #3a3430;
+  background-color: #111a2b;
+  border-top-color: #2a3650;
 }
 
 /* ---------- Footer ---------- */
 
 .footer--dark {
-  --ifm-footer-background-color: #0a0a0a;
+  --ifm-footer-background-color: #0b1220;
+  --ifm-footer-color: #c5cdd8;
+  --ifm-footer-link-color: #c5cdd8;
+  --ifm-footer-title-color: #f5f7fa;
   border-top: 1px solid var(--helix-hairline);
+}
+
+[data-theme='dark'] .footer--dark {
+  --ifm-footer-background-color: #070d18;
 }
