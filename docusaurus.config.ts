@@ -27,7 +27,21 @@ const BASE_URL = CUSTOM_DOMAIN ? '/' : `/${WIKI_REPO}/`;
 const config: Config = {
   title: 'HelixID Docs',
   tagline: 'Cryptographic identity and authorization for AI agents',
-  favicon: 'img/favicon.png',
+  // Compact transparent mark; the SVG swaps its strand colour for dark browser
+  // chrome. New paths since the 2026-10 rebrand so cached orange favicons are
+  // never reused. PNG fallback for browsers without SVG favicon support.
+  favicon: 'img/favicon.svg',
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '64x64',
+        href: `${BASE_URL}img/helixid-favicon.png`,
+      },
+    },
+  ],
 
   future: {
     v4: true,
