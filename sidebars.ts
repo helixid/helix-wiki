@@ -9,6 +9,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'get-started/introduction',
         'get-started/quick-start',
+        'get-started/mcp-quickstart',
         'get-started/installation-and-modes',
         'get-started/project-structure',
       ],
