@@ -178,6 +178,29 @@ so an unauthenticated flood cannot fill the audit log; failed presentations are 
 when it verifies them. And auditing is best effort: if the sink throws, `onAuditError` is called and the tool call goes
 ahead.
 
+## Known limitation: presentation replay (pending)
+
+:::warning[Pending follow-up]
+A presentation is **not single-use**. Neither `@helixid/mcp-middleware` nor the HelixID API's `POST /v1/vp/verify`
+records which presentations it has already accepted, so the same VP is accepted again if it is presented again before it
+expires. A local end-to-end run on 2026-11-09 confirmed this: one VP, sent twice to the same server, was allowed both
+times.
+:::
+
+What still limits a replayed presentation today:
+
+- **It works against one service only.** A VP is bound to its target service. With `expectedTargetService` set, a VP
+  signed for any other service is rejected (`VP_VERIFICATION_FAILED`, "VP targetService does not match expected target
+  service"). Always set it.
+- **It expires quickly.** A VP is valid for `VP_TTL_SECONDS` after signing: 300 seconds by default.
+- **It can be cut off.** Revoking the agent's credential makes every presentation built on it fail verification.
+- **It is visible.** Each replayed call is still authorized against the tool's scopes and recorded as `AUTHZ_GRANTED`
+  under the same `vpId`, so repeated use of one presentation shows up in the audit log.
+
+Single-use enforcement (remembering accepted VP ids until they expire, on the server or in the middleware) is planned as
+a follow-up in Phase 2 of the MCP middleware rollout. Until then, treat a presentation like a short-lived bearer
+credential: send it only over TLS, and don't log it.
+
 ## Why MCP is a good fit
 
 An MCP server frequently sits at an organizational boundary — the tools belong to one party, the agent to another. That
