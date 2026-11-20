@@ -44,12 +44,14 @@ const sidebars: SidebarsConfig = {
       label: 'SDK Reference',
       items: [
         'sdk/sdk-js',
-        'sdk/core',
+        'sdk/sdk-py',
         'sdk/mcp',
         'sdk/langchain',
-        'sdk/cli',
-        'sdk/did-hedera',
         'sdk/widget',
+        'sdk/cli',
+        'sdk/mcp-server',
+        'sdk/core',
+        'sdk/did-hedera',
         'sdk/http-api',
       ],
     },
@@ -57,8 +59,9 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Framework Integrations',
       items: [
-        'integrations/langchain',
         'integrations/mcp',
+        'integrations/langchain',
+        'integrations/crewai',
       ],
     },
     {

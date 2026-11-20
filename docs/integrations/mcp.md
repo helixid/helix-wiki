@@ -37,9 +37,10 @@ later. To see them running before you wire anything, follow the [MCP Quickstart]
 2. **Refuse ambiguity.** Two different VPs, two `Authorization` headers, or a VP together with a bearer token is rejected
    (`CREDENTIAL_CONFLICT`) rather than resolved by picking one. The same VP repeated in several places is fine.
 3. **Authenticate.** A VP is verified by the HelixID API; its *effective scopes* (the agent's authority, narrowed by any
-   consent grant in the VP) become the caller's scopes. A bearer token is validated as a JWT against your authorization
-   server's JWKS (issuer, audience, expiry, signature), or by your own callback for opaque tokens and introspection; its
-   `scope` claim becomes the caller's scopes.
+   consent grant in the VP) become the caller's scopes. A bearer token is validated against the authorization server
+   that issued it: a JWT against that server's JWKS (issuer, audience, expiry, signature), an opaque token by RFC 7662
+   introspection. Its `scope` (or `scp`) claim becomes the caller's scopes. A callback of your own covers credentials no
+   standard describes.
 4. **Authorize the tool.** With `toolScopes`, a tool not listed is **denied by default**, and a listed tool needs every
    scope in its list. Without `toolScopes`, the global `requiredScopes` applies to every tool.
 5. **Audit.** The decision — allowed or denied, which tool, which scope was missing, who asked — goes to your audit sink
@@ -59,12 +60,9 @@ const requireHelix = helixidMCPMiddleware({
   client: new HelixClient(process.env.HELIX_API_URL!, { apiKey: process.env.HELIX_API_KEY! }),
   expectedTargetService: 'did:web:mcp.example.com', // reject VPs signed for another service
 
-  // OAuth door: JWT access tokens whose audience is this server.
-  oauth: {
-    issuer: 'https://as.example.com',
-    audience: resource,
-    jwksUri: 'https://as.example.com/.well-known/jwks.json',
-  },
+  // OAuth door: access tokens whose audience is this server. The issuer URL is
+  // enough: its keys are read from its metadata.
+  oauth: { issuer: 'https://as.example.com', audience: resource },
 
   toolScopes: {
     lookup_order: ['orders:read'],
@@ -85,6 +83,42 @@ await requireHelix({ name, input: args, _meta: request.params._meta, headers: re
 
 Use one door or both. `client` is only needed to accept HelixID agents; `oauth` (or `validateOAuthToken`) only to accept
 OAuth clients. A bearer token sent to a server with no OAuth configured is rejected.
+
+### Trusting authorization servers
+
+`oauth` takes one authorization server or an array of them, so agents from different identity providers can share one
+MCP server:
+
+```typescript
+import { auth0, entra, keycloak, okta } from '@helixid/mcp-middleware';
+
+oauth: [
+  entra({ tenantId: '<directory id>', audience: '<API application id>' }),
+  auth0({ domain: 'tenant.us.auth0.com', audience: resource }),
+  okta({ domain: 'dev-1.okta.com', audience: resource, introspection: { clientId: '...', clientSecret: '...' } }),
+  keycloak({ baseUrl: 'https://id.example.com', realm: 'shop', audience: resource }),
+  { issuer: 'https://as.example.com', audience: resource },
+],
+```
+
+- **Any standards-based server needs only `{ issuer, audience }`.** The `jwks_uri` (and, with `introspection`, the
+  `introspection_endpoint`) are read from the issuer's metadata on first use. Give `jwksUri` or `introspection.endpoint`
+  yourself to skip discovery.
+- **Presets name your tenant, not a provider.** `entra`, `auth0`, `okta` and `keycloak` turn a tenant ID or domain into
+  that provider's exact issuer string and endpoints. There is no "trust Auth0": every customer of those providers has
+  their own authorization server, and the one you trust has to be yours.
+- **JWTs are routed by `iss`.** A token goes to the issuer it names, which then verifies it; an issuer not in the list is
+  refused before any request is sent to an authorization server.
+- **Opaque tokens are introspected.** Add `introspection: { clientId, clientSecret }`, this server's own client at the
+  authorization server, to one issuer. Only one issuer may use introspection, because an opaque token does not say who
+  issued it. Set `introspectJwts: true` on that issuer to also introspect its JWTs, so a revoked token is refused before
+  it expires.
+- **Scopes can come from other claims.** `scopeClaims` names the claims to read; the default is `scope` and `scp`, and
+  the `entra` preset reads `scp` and `roles`.
+
+`validateOAuthToken: async (token) => ({ sub, scopes })` remains for credentials no standard describes, such as your own
+API keys presented as bearers. Use it or `oauth`, not both. The option tables are in the
+[package reference](../sdk/mcp.md#oauthissueroptions).
 
 ### Over HTTP: return real 401s
 
@@ -125,10 +159,15 @@ try {
 | No credential | 401 | `Bearer` and `HelixVP`, each with `resource_metadata` |
 | Invalid or expired token, VP that fails verification | 401 | `error="invalid_token"` |
 | Conflicting credentials | 400 | `error="invalid_request"` |
-| Missing scope, or a tool not in `toolScopes` | 403 | `error="insufficient_scope"` |
+| Missing scope | 403 | `error="insufficient_scope"`, `scope="…"` listing the scopes the tool requires |
+| A tool not in `toolScopes` | 403 | `error="insufficient_scope"` |
+
+The `scope` attribute on a 403 lets an OAuth client request the missing scopes from its authorization server and retry.
 
 `toHttpErrorResponse` returns `undefined` for anything that is not about the caller's credentials — for example the
-server's own HelixID API key being rejected — so a misconfigured server never tells a caller to re-authenticate.
+server's own HelixID API key being rejected — so a misconfigured server never tells a caller to re-authenticate. The same
+goes for `AuthorizationServerUnavailableError`, thrown when the authorization server's metadata, keys or introspection
+endpoint cannot be reached: the caller's token was not shown to be bad, so answer 5xx, never 401.
 
 Gate only `tools/call`. Leaving `initialize` and `tools/list` open keeps HelixID clients that carry their VP in `_meta`
 (rather than a header) working, and means a presentation is verified once per tool call. The
@@ -192,7 +231,7 @@ What still limits a replayed presentation today:
 - **It works against one service only.** A VP is bound to its target service. With `expectedTargetService` set, a VP
   signed for any other service is rejected (`VP_VERIFICATION_FAILED`, "VP targetService does not match expected target
   service"). Always set it.
-- **It expires quickly.** A VP is valid for `VP_TTL_SECONDS` after signing: 300 seconds by default.
+- **It expires quickly.** A VP is valid for five minutes after signing.
 - **It can be cut off.** Revoking the agent's credential makes every presentation built on it fail verification.
 - **It is visible.** Each replayed call is still authorized against the tool's scopes and recorded as `AUTHZ_GRANTED`
   under the same `vpId`, so repeated use of one presentation shows up in the audit log.
@@ -213,6 +252,11 @@ away. See [Comparisons](../comparisons/why-not-just-use.md).
 
 ## Scope discovery for consent
 
-An MCP server's `tools/list` doubles as a scope catalog: [`@helixid/widget`](../sdk/widget.md)'s
-`resolveConsentScopes()` unions the scopes it advertises with the service's curated fallback to build the list a user
-sees on a consent page. Tools and consent scopes stay in sync without a second registry to maintain.
+The scopes you put in `toolScopes` are a natural source for the scope list a user sees on a consent page. Building that
+list is the service's job: pass it to [`@helixid/widget`](../sdk/widget.md)'s `resolveConsentScopes()` as
+`serviceScopes`, with a label for each scope. The widget no longer reads an MCP server's `tools/list` itself.
+
+`resolveConsentScopes({ serviceDid, agentDid, serviceScopes, client })` then narrows the list to the scopes the agent
+itself holds, read from the HelixID API, and appends `accept-terms`. A consent screen therefore never offers a scope the
+agent's own credential lacks, which grant issuance would refuse anyway. If the agent holds none of the service's scopes,
+or its scopes cannot be read, resolution throws rather than falling back to the full list.

@@ -26,7 +26,7 @@ const BASE_URL = CUSTOM_DOMAIN ? '/' : `/${WIKI_REPO}/`;
 
 const config: Config = {
   title: 'HelixID Docs',
-  tagline: 'Cryptographic identity and authorization for AI agents',
+  tagline: 'Passports and visas for AI agents: verifiable identity and authorization',
   // Compact transparent mark; the SVG swaps its strand colour for dark browser
   // chrome. New paths since the 2026-10 rebrand so cached orange favicons are
   // never reused. PNG fallback for browsers without SVG favicon support.
@@ -138,7 +138,6 @@ const config: Config = {
           items: [
             { label: 'GitHub', href: GITHUB_URL },
             { label: 'helixid.dev', href: 'https://helixid.dev' },
-            { label: 'DgVerse', href: 'https://www.dgverse.in' },
           ],
         },
       ],

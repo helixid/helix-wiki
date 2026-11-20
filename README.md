@@ -140,5 +140,3 @@ This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Documentation content is published under the [Apache License 2.0](LICENSE), the same
 license as HelixID.
-
-Built by [DgVerse](https://www.dgverse.in).

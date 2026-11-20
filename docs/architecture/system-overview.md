@@ -8,125 +8,130 @@ description: The components of a HelixID deployment, the agent lifecycle end to 
 
 # System Overview
 
-A HelixID deployment has four moving parts. Only the first is required in every deployment.
+A HelixID deployment has a small number of moving parts.
 
 | Component | What it is | Required? |
 | --- | --- | --- |
-| `@helixid/sdk-js` | The library inside the agent and inside the verifier | Yes |
-| `helix-api` | Fastify issuer service — enrollment, VC lifecycle, status list, `did:web` hosting, session bridge | For issuer-backed credentials |
-| `console` | Operator web UI — agents, enrollment, audit trail | Optional |
-| `@helixid/cli` | Operator CLI for low-volume issuance and revocation | Optional, an alternative to the API |
+| HelixID server ([`helixid`](https://github.com/helixid/helixid), built on `@helixid/core`) | The issuer and verifier API — onboarding, key custody, credential lifecycle, presentation signing and verification, status list, `did:web` hosting, audit log, session bridge | Yes |
+| SDK — [`@helixid/sdk-js`](../sdk/sdk-js.md) or [`helixid-sdk-py`](../sdk/sdk-py.md) | A typed client for that API, inside the agent and inside the service it calls | Yes |
+| Framework adapters | [`@helixid/mcp-middleware`](../integrations/mcp.md), [LangChain](../integrations/langchain.md), [CrewAI](../integrations/crewai.md), [`@helixid/widget`](../sdk/widget.md) for consent pages | Optional |
+| [Console](../self-hosting/console.md) | Operator web UI — agents, onboarding, audit trail | Optional |
+| [`@helixid/cli`](../sdk/cli.md) / [`@helixid/mcp-server`](../sdk/mcp-server.md) | Operator tooling for issuer keys, status lists and low-volume issuance | Optional |
 
-`helix-core` sits under the SDK and the API, and owns everything cryptographic — DID resolution and caching, Ed25519 signing and verification, VP verification, canonical JSON. Nothing above it re-implements crypto.
+`@helixid/core` owns everything that makes a trust decision — DID resolution and caching, Ed25519 signing and verification, presentation verification, canonical JSON, key custody. The SDKs do not re-implement it; they call the API.
 
 ## Agent lifecycle, end to end
 
 ```
-1. Agent Created
-   └── DID generated → did:key (local) / did:web (default) / did:hedera (optional plugin)
-   └── Wallet created → stores encrypted private key + credentials
+1. Agent onboarded
+   └── Operator mints an enrollment token (scopes, delegation depth)
+   └── Server generates the agent's keypair, keeps it encrypted in custody,
+       creates its DID (the passport) and issues a HelixAgentCredential
+       (the base visa: privilegeScopes = the agent's ceiling)
+   └── The agent receives { agentDid, vcId } — no key, no wallet file
 
-2. Credentials Issued
-   └── Platform signs HelixAgentCredential → delivered to agent wallet
-       (identity + privilegeScopes = the agent's ceiling, never exceeded downstream)
-   └── On first call to a new service provider, the SP issues a
-       DelegationGrantCredential after the user consents
+2. User consents (only when the agent acts for a user)
+   └── The service shows its own consent page
+   └── The service issues a DelegationGrantCredential (the service visa)
+       under its own DID, for this agent and this user
 
-3. Agent Requests Action
-   └── Builds a Verifiable Presentation from the relevant credentials,
-       signs it with its private key — locally, no network
+3. Agent requests a presentation
+   └── signVP(agentDid, serviceDid, { userDid? })
+   └── Server gathers the agent's active credentials and matching grants
+       and signs with the agent's custodial key. Valid for 5 minutes,
+       bound to that one service.
 
-4. Verifier Validates
-   ├── Verify VP signature using the agent's DID public key
-   ├── Resolve the DID document (cached static read)
-   ├── Verify the VC signature and validity window
-   ├── Walk the delegation chain — signatures, scope subsetting, depth
-   ├── Evaluate scopes (effectiveScopes)
-   └── Check revocation status (Bitstring Status List)
+4. Agent calls the service, presentation attached
+   └── HTTP header (Authorization: HelixVP …) or MCP _meta
 
-5. Decision → approved (action executed) or denied (error + reason code)
+5. Service verifies — verifyVP() / MCP middleware → POST /v1/vp/verify
+   ├── Presentation signature and expiry, target service
+   ├── Each credential: signature, validity window, revocation
+   ├── Delegation chain — linkage, scope subsetting, depth
+   └── Consent rules → effectiveScopes
 
-6. Audit → the whole chain is recorded: issuance, consent, presentation,
-   verification, authorization, action, result — refusals included
+6. Decision → the service checks the scope the call needs:
+   allowed (action executed) or denied (error + reason code)
+
+7. Audit → issuance, consent, signing, verification, authorization and
+   action are recorded — refusals included
 ```
 
-Step 4 happens **in-process**. The verifier never calls the issuer to ask whether this particular request is allowed; see [What "Offline Verification" Actually Means](../concepts/offline-verification.md).
+Step 5 is a call from the service to the HelixID API it verifies with. It is never a call to the *agent's issuer* asking whether this particular request is allowed; see [What "Offline Verification" Actually Means](../concepts/offline-verification.md).
 
 ## The trust boundaries
 
-Three separations do the real work, and each exists because the alternative collapses authority into the wrong hands:
+Three separations do the real work:
 
-- **The agent owns its keys.** Private keys are generated in the agent process and encrypted at rest in its wallet. The issuer never sees them, so the issuer cannot impersonate an agent.
-- **The operator owns issuance policy.** Only an authenticated operator can mint an enrollment token deciding scopes, delegation depth, and domains. If agents could mint their own, identity and authorization would collapse into self-granted authority.
-- **The service provider owns consent and its own scope catalog.** The SP signs its own grants with its own key and hosts its own status list. See [The Two-Issuer Model](../concepts/two-issuer-model.md).
+- **The operator owns issuance policy.** Only the operator decides an agent's scopes and delegation depth, by minting the enrollment token and holding the admin key. An agent cannot grant itself authority.
+- **The service owns consent and its own scope catalog.** A user's approval is recorded as a grant under the service's DID, valid only at that service. See [The Two-Issuer Model](../concepts/two-issuer-model.md).
+- **The verifier owns the decision.** Verification returns facts — who, with what scopes, for which user. Whether that is enough for this call is the service's rule.
+
+One boundary is deliberately *not* there: agents and services do not hold their own private keys. The HelixID server holds them in custody and signs on request, so whoever controls that server and its admin key can sign as any agent it onboarded. That is the central thing to protect in a deployment — see [Security Model](../security/security-model.md#key-custody).
 
 ## Major flows
 
 Each of these maps to concrete surfaces in the [SDK](../sdk/sdk-js.md), [HTTP API](../sdk/http-api.md), and [CLI](../sdk/cli.md) references.
 
-### 1. Enrollment → issuance → presentation → verification
+### 1. Onboarding → presentation → verification
 
 | Step | Surfaces |
 | --- | --- |
-| Create enrollment token | `POST /v1/enrollment-tokens`, or operator-side `helix vc issue` |
-| Onboard agent | `HelixClient.requestOnboardingChallenge()`, `HelixClient.completeOnboarding()`, `POST /v1/onboard`, `POST /v1/onboard/verify`, `AgentWallet.save()` |
-| Store/read credential | `AgentWallet.addCredential()`, `AgentWallet.credentials`, `AgentWallet.load()` |
-| Issue VP | `VPBuilder.sign()`, `HelixIDMiddleware()`, `HelixIDToolWrapper()`, `attachHelixVP()` |
-| Verify VP | `POST /v1/vp/verify`, `verifyVP()`, `helixidMCPMiddleware()` |
-| Enforce scope | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
+| Create enrollment token | `POST /v1/enrollment-tokens` |
+| Onboard agent | `POST /v1/onboard`, `HelixClient.onboardAgent()`, `helix agent onboard` |
+| Sign a presentation | `POST /v1/agents/:did/vp`, `HelixClient.signVP()`, `attachHelixVP()`, `HelixIDToolWrapper()` |
+| Verify | `POST /v1/vp/verify`, `verifyVP()`, `helixidMCPMiddleware()` |
+| Enforce scope | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `toolScopes` / `requiredScopes` |
 | Optional session | `POST /v1/vp/verify` with `session: true`, `GET /v1/sessions/public-key`, `HelixClient.fetchSessionPublicKey()`, `HelixClient.verifySessionToken()` |
 
-### 2. Delegation
+### 2. Service enrollment and user consent
 
 | Step | Surfaces |
 | --- | --- |
-| Load parent credential | `AgentWallet.load()`, `AgentWallet.credentials` |
-| Create delegated VC | `delegate(options, wallet)` |
-| Store delegated VC | `AgentWallet.addCredential()`, `AgentWallet.updateCredential()` |
-| Issue VP from delegated VC | `VPBuilder.sign()`, `HelixIDMiddleware()`, `attachHelixVP()` |
-| Verify delegation chain | `verifyVP()`, `POST /v1/vp/verify`, `helixidMCPMiddleware()` |
-| Enforce delegated scopes | `requireScope()`, `checkScope()`, `filterToolsByScope()`, MCP `requiredScopes` |
+| Enroll a service | `POST /v1/services` |
+| List the scopes a consent may offer | `GET /v1/service-delegation-grants/agent-scopes`, `HelixClient.getAgentScopes()`, `resolveConsentScopes()` |
+| Issue the grant | `POST /v1/service-delegation-grants`, `HelixClient.issueServiceDelegationGrant()` |
+| Sign a presentation for a user | `HelixClient.signVP(agentDid, serviceDid, { userDid })` |
+| Revoke the grant | `POST /v1/vcs/:vcId/revoke`, `HelixClient.revokeVC()` |
 
-### 3. Revocation
+### 3. Delegation
 
 | Step | Surfaces |
 | --- | --- |
-| Enroll and issue VC | `POST /v1/enrollment-tokens`, `POST /v1/onboard`, `POST /v1/onboard/verify` |
-| Direct issue alternative | `POST /v1/vcs`, `HelixClient.issueVC()`, `helix vc issue` |
+| Allow delegation | `maxDelegationDepth` on the enrollment token |
+| Delegate | `POST /v1/agents/:did/delegate`, `HelixClient.delegateAuthority()` |
+| Present and verify | Same as flow 1 — the delegated credential and its chain are included automatically |
+| Revoke a delegation | `POST /v1/vcs/:vcId/revoke` |
+
+### 4. Revocation
+
+| Step | Surfaces |
+| --- | --- |
+| Revoke | `POST /v1/vcs/:vcId/revoke`, `HelixClient.revokeVC()`, `helix revoke` |
+| Check status | `GET /v1/vcs/:vcId/status`, `HelixClient.checkVCStatus()` |
 | Publish/read status list | `GET /v1/status-list/:listId`, `POST /v1/status-list`, `HelixClient.getStatusList()`, `helix status-list create` |
-| Revoke VC | `POST /v1/vcs/:vcId/revoke`, `HelixClient.revokeVC()`, `helix revoke` |
-| Check VC status | `HelixClient.checkVCStatus()` |
 | Verification after revoke | `verifyVP()`, `POST /v1/vp/verify`, `helixidMCPMiddleware()` |
 
-### 4. DID lifecycle
+### 5. DID lifecycle
 
 | Step | Surfaces |
 | --- | --- |
-| Create DID | `POST /v1/dids`, `HelixClient.createDID()`, `AgentWallet.createDID()`, `helix did create` |
-| Resolve DID | `GET /v1/dids/:did`, `HelixClient.resolveDID()`, `HelixDidResolver.resolve()` |
-| Add service endpoint | `POST /v1/dids/:did/services`, `AgentWallet.addService()` |
-| Remove service endpoint | `DELETE /v1/dids/:did/services/:endpointId`, `AgentWallet.removeService()` |
-| Deactivate DID | `POST /v1/dids/:did/deactivate`, `AgentWallet.deactivate()` |
+| Create DID | `POST /v1/dids`, `HelixClient.createDID()`, `helix did create` |
+| Resolve DID | `GET /v1/dids/:did`, `HelixClient.resolveDID()` |
+| Add / remove service endpoint | `POST /v1/dids/:did/services`, `DELETE /v1/dids/:did/services/:endpointId` |
+| Deactivate DID | `POST /v1/dids/:did/deactivate`, `HelixClient.deactivateDID()` |
 
-### 5. Credential renewal
+### 6. Credential issuance and renewal
 
-`POST /v1/vcs/:vcId/renew` (or `HelixClient.renewVC()`) issues a renewed credential; store it with `AgentWallet.addCredential()` or `updateCredential()`, and read the current one with `AgentWallet.getLatestCredential()`.
+`POST /v1/vcs` (`HelixClient.issueVC()`) issues a credential directly; `POST /v1/vcs/:vcId/renew` (`HelixClient.renewVC()`) issues a renewed one from an existing credential.
 
-### 6. User DID challenge verification
+### 7. User DID challenge verification
 
 `POST /v1/challenges` issues a challenge for a user DID; the user signs it; `POST /v1/challenges/:challengeId/verify` confirms the signature. SDK: `HelixClient.requestUserChallenge()` and `verifyUserChallenge()`.
 
-### 7. Session bridge
+### 8. Session bridge
 
 Verify a VP once, optionally receive a short-lived token, and reuse it. `POST /v1/vp/verify` with `session: true`, then `GET /v1/sessions/public-key` and `HelixClient.verifySessionToken()`. See [Hybrid 3-Layer Design](./hybrid-layers.md).
-
-### 8. Local dev credential flow
-
-`AgentWallet.create()` → `AgentWallet.selfIssueVC()` (or `helix vc self-issue`) → `VPBuilder.sign()` → `verifyVP({ allowSelfSigned: true })`. Development only — see [Verifiable Credentials](../concepts/verifiable-credentials.md#self-issued-credentials).
-
-### 9. Wallet management
-
-`helix wallet inspect` shows wallet contents without printing the private key. Programmatically: `addCredential()`, `updateCredential()`, `removeCredential()`, `listCredentials()`, `getCredential()`, `getLatestCredential()`.
 
 ## Standards foundation
 
@@ -135,4 +140,4 @@ Verify a VP once, optionally receive a short-lived token, and reuse it. `POST /v
 | W3C DID Core 1.0 | Decentralized identifiers — structure, resolution, control |
 | W3C VC Data Model 2.0 | Verifiable credentials — structure, proofs |
 | Verifiable Presentations | Packaging and presenting credentials for verification |
-| Bitstring Status List (StatusList2021) | Credential revocation |
+| W3C Bitstring Status List | Credential revocation |

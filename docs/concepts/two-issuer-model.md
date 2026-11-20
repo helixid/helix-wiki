@@ -3,91 +3,113 @@ id: two-issuer-model
 title: The Two-Issuer Model
 sidebar_label: The Two-Issuer Model
 sidebar_position: 4
-description: Why HelixID has two issuers — a platform issuer that sets the ceiling and a service provider that issues the user's consent grant.
+description: Why HelixID has two issuers — a platform issuer that sets the ceiling and a service that issues the user's consent grant.
 ---
 
 # The Two-Issuer Model
 
-:::info[This is a corrected model]
-Earlier descriptions of HelixID implied a **single** issuer. The shipped code has **two**, and they issue different credential types from different keys. Collapsing them back into one issuer is the most common way this design gets misread — and it changes the security properties, not just the wording.
+:::info[Two issuers, not one]
+HelixID has **two** issuers, and they issue different credential types under different DIDs and different keys. Collapsing them back into one issuer is the most common way this design gets misread — and it changes the security properties, not just the wording.
 :::
 
 Authority in HelixID comes from two independent parties:
 
-| Issuer | Credential | Scope | When issued |
-| --- | --- | --- | --- |
-| **Platform** (`HELIX_ISSUER_DID`) | `HelixAgentCredential` | `privilegeScopes` — the agent's outer ceiling | Once, at onboarding |
-| **Service Provider** (own `did:web`, own keypair, own status list) | `DelegationGrantCredential` ("grant") | SP-owned scope catalog, narrowed by user consent — never exceeds the platform ceiling | Just-in-time, on first `CONSENT_REQUIRED` from that SP |
+| | Base visa | Service visa |
+| --- | --- | --- |
+| Credential type | `HelixAgentCredential` | `DelegationGrantCredential` ("grant") |
+| Issued under | The platform issuer's DID (`HELIX_ISSUER_DID`) | The service's own DID |
+| Carries | `privilegeScopes` — the agent's outer ceiling | The scopes the user approved at this service |
+| When | Once, when the agent is onboarded | When the user consents on the service's consent page |
+| Valid at | Any service | Only the service that issued it |
 
-Authority is the **intersection** of the two. A grant can never widen what the platform issuer gave the agent, and the agent can never act beyond what the user approved for that service.
+The agent's DID is its passport; these two credentials are the visas stamped against it. A grant can never widen what the platform issuer gave the agent, and the agent can never act for a user beyond what that user approved at that service.
 
 ## Why two
 
 A single issuer would have to answer two questions that belong to different parties:
 
 - *"Is this a real agent, and what class of thing is it?"* — the platform knows this. It onboarded the agent.
-- *"Do I, the user, want this agent doing that at this service?"* — only the user can answer this, and only the service provider can present the question in a way the user can meaningfully judge.
+- *"Do I, the user, want this agent doing that at this service?"* — only the user can answer this, and only the service can present the question in a way the user can meaningfully judge.
 
-Merging them would mean the platform issuer effectively granting consent on the user's behalf to services it has no relationship with. The split keeps the consent decision where the consent actually happens.
+Merging them would mean the platform issuer effectively granting consent on the user's behalf to services it has no relationship with. The split keeps the consent decision where the consent actually happens: on the service's own consent page, in the service's own session, recorded under the service's own DID.
 
-It also means a service provider does not have to trust the platform to define its scope catalog. The SP owns its own scopes, its own signing key, and its own revocation — see [locked rules](#locked-rules) below.
+It also means a service does not have to accept a scope vocabulary from anyone else. The service owns its scope catalog.
+
+## Services are enrolled identities
+
+A service is enrolled with HelixID the same way an agent is onboarded: HelixID creates the service's DID, generates its keypair, and holds the private key in custody.
+
+```bash
+curl -X POST "$HELIX_API_URL/v1/services" \
+  -H "content-type: application/json" \
+  -H "x-admin-api-key: $HELIX_ADMIN_API_KEY" \
+  -d '{
+    "name": "xyz-airways",
+    "domain": "api.xyz-airways.example",
+    "requiredScopes": ["flights.search", "flights.book"]
+  }'
+```
+
+That DID (`did:web:<domain>:services:<slug>` under `did:web`) is what agents name as `targetService` when they sign a presentation, and it is the `issuer` on every grant the service gives out.
+
+:::note[Changed in `@helixid/core` 3.0.0]
+Earlier releases had the service keep its own signing key and host its own status list, with a two-step prepare/finalize exchange so it could sign each grant itself. In 3.0.0 the service's key is held in custody like an agent's, and issuing a grant is one authenticated API call. A grant signed elsewhere can still be recorded with `POST /v1/vcs/register`, which checks the signature against the issuer's DID document before storing it.
+:::
 
 ## The flow
 
-<Figure src="img/helixid-flow.svg" light width={1320} height={690} fullSrc="img/helixid-flow-full.svg" alt="HelixID flow. Setup: the HelixID issuer signs a one-time Agent-Authority VC that sets the scope ceiling, and the service provider signs a Delegated Grant VC after the user logs in and consents; both are stored in the agent wallet. Then, in sequence: 1, the agent requests a VP from its wallet; 2, the wallet returns a signed VP; 3, the agent makes its tool call with _helixVP attached; 4, the MCP server verifies signature, expiry, revocation and scopes in-process with no network hop, in about 1 to 6 milliseconds cached; 5, allow executes the tool, deny returns an error; 6, the agent SDK asynchronously logs VP_VERIFIED or VP_REJECTED to the HelixID audit log.">
-  The two boxes across the top are the two issuers. The <strong>HelixID issuer</strong> signs the Agent-Authority VC once at onboarding; the <strong>service provider</strong> signs its own Delegated Grant VC after the user consents. Both land in the wallet as independent credentials — note that they merge into the wallet lane, not into each other.
-</Figure>
+An agent wants to act for a user at a service the user has not yet approved it for:
 
-An agent calls a service provider it has never dealt with:
-
-1. Agent presents only its `agentVC`.
-2. SP finds **no matching grant** for this `(service, user)` pair, and returns `CONSENT_REQUIRED` with a `consentUrl` and the `requiredScope`.
-3. Agent hands off to the SP's **own consent page** — not a HelixID-hosted one.
-4. The user signs in with the SP and sees the scopes on offer (`GET /api/consent/scopes`), then accepts (`POST /api/consent/accept`).
-5. **The SP signs and issues the grant VC itself**, and persists it along with its own status list.
-6. The agent's wallet stores the grant as an **independent credential** — never merged into `delegationChain`.
-7. The agent retries, now presenting `[agentVC, grantVC]`.
-8. The SP verifies both and the call succeeds.
-
-Grants are cached per `(serviceDid, userDid)`. A `standing` grant means later calls skip consent entirely — zero new grants and zero widget renders, which the consent demo asserts on as a hard test.
-
-## Presenting both credentials
-
-Both credentials travel in one VP, as separate entries:
+1. The agent asks HelixID to sign a presentation for that service and that user: `signVP(agentDid, serviceDid, { userDid })`.
+2. HelixID finds no active grant from that service to this agent for that user and refuses with `CONSENT_GRANT_NOT_FOUND`.
+3. The agent sends the user to the **service's own consent page** — not a HelixID-hosted one.
+4. The user signs in with the service and sees the scopes on offer. The service's backend builds that list with `getAgentScopes()` — or [`@helixid/widget`](../sdk/widget.md)'s `resolveConsentScopes()` — so it only ever offers scopes this agent actually holds.
+5. The user accepts. The service's backend calls `issueServiceDelegationGrant()`. HelixID signs the grant with the service's key, gives it a revocable status entry and stores it.
+6. The agent asks for a presentation again. This time HelixID includes the grant alongside the agent's own credential.
+7. The service verifies the presentation and the call succeeds, with `effectiveScopes` limited to what the user approved.
 
 ```typescript
-const vp = await new VPBuilder({
-  credentials: [agentVC, grantVC],   // exactly one agent-authority VC + at most one grant
-  holderDid: wallet.getDID(),
-  userDid: 'did:web:user.example.com',
-  targetService: 'airline-sp',
-}).sign(wallet.getPrivateKeyHex(), `${wallet.getDID()}#key-1`)
+// Service backend, after the user clicks Allow
+const grant = await client.issueServiceDelegationGrant({
+  serviceDid,
+  agentDid,
+  userDid: 'did:web:user.example.com',   // or the user's identifier at this service
+  scopes: ['flights.search', 'flights.book'],
+  durability: 'standing',
+})
 ```
 
-`credentials` accepts 1–2 entries: exactly one agent-authority VC, plus at most one consent grant VC.
+A `standing` grant stays valid until it is revoked, so later calls skip consent. A `session` grant expires after 24 hours.
 
-On the verifier side, the intersection surfaces as `effectiveScopes`:
+## What the verifier sees
+
+Both credentials travel in one presentation, as separate entries. The agent never assembles this itself — HelixID picks every active credential the agent holds, adds the grants that match the service and user, and signs.
+
+On the verifier side, the result surfaces as `effectiveScopes`:
 
 ```typescript
-const result = await verifyVP(incomingVP, { expectedTargetService: 'airline-sp' })
+const result = await verifyVP(incomingVP, client, { expectedTargetService: serviceDid })
 
-// effectiveScopes === privilegeScopes when no grant was presented;
-// otherwise it is the intersection of the ceiling and the grant.
-if (!result.effectiveScopes.includes('book:flights')) {
+// effectiveScopes === privilegeScopes when the presentation names no user;
+// with a user, it is what the grant and the agent's ceiling both allow.
+if (!result.effectiveScopes.includes('flights.book')) {
   throw new Error('INSUFFICIENT_SCOPE')
 }
 ```
 
 Always enforce on `effectiveScopes`, never on `privilegeScopes` alone — `privilegeScopes` is the ceiling, not the permission.
 
-## Locked rules
+## Rules the verifier enforces
 
 These are design invariants, not configuration:
 
-- **Grants are per-`(service, user)`.** One SP's grant never authorizes another SP, and never satisfies a different user. There is no "grant once, use everywhere."
-- **A grant never widens the ceiling.** The intersection is computed at verification time; an SP cannot issue itself more authority than the platform gave the agent.
-- **A grant is never merged into the delegation chain.** It is an independent credential presented alongside the agent VC, not a link in it. Grants and [sub-delegation](./delegation.md) are separate mechanisms.
-- **Revocation is SP-owned.** The SP holds the grant VC and its own status list, and revokes it directly. HelixID keeps no index mapping grants to services — which also means HelixID cannot revoke a grant on an SP's behalf.
+- **A grant is valid only at the service that issued it.** The grant's issuer must equal the presentation's `targetService`; otherwise verification fails with `CONSENT_GRANT_WRONG_SERVICE`. There is no "grant once, use everywhere."
+- **A grant is for one user and one agent.** A grant for a different user or a different agent is rejected outright (`CONSENT_GRANT_SUBJECT_MISMATCH`), not ignored.
+- **Naming a user requires that user's consent.** A presentation that says it acts for a user but carries no grant is rejected (`CONSENT_GRANT_REQUIRED`).
+- **A grant never widens the ceiling.** Issuance refuses any scope the agent does not hold in its own right (`CONSENT_GRANT_SCOPE_NOT_ALLOWED`), and verification intersects the grant with the agent's authority again.
+- **Consent can follow delegation, if the user allows it.** When an agent delegates to a sub-agent, the user's grant to the parent covers the sub-agent only for the authority delegated from that parent — and not at all if the grant was issued with `allowDelegation: false` (`CONSENT_GRANT_NOT_DELEGABLE`).
+- **A grant is never part of the delegation chain.** It is an independent credential presented alongside the agent's credentials. Grants and [sub-delegation](./delegation.md) are separate mechanisms.
+- **Each grant is individually revocable.** It has its own status entry; revoking it does not touch the agent's credential or any other grant. See [Revocation](./revocation.md).
 
 ## Grants vs. sub-delegation
 
@@ -95,26 +117,18 @@ These are easy to conflate, and they are different mechanisms with different tru
 
 | | Consent grant | Sub-delegation |
 | --- | --- | --- |
-| Issued by | The service provider | Another agent |
-| Approved by | The end user, interactively | No user interaction — the parent agent decides |
-| Trust direction | Platform agent → external SP | Agent → agent, inside the platform's own chain |
-| Stored as | An independent credential in the wallet | A link in `delegationChain` |
-| Revoked by | The SP, via its own status list | The platform issuer, via the root credential |
+| Issued in the name of | The service | The delegating agent |
+| Approved by | The end user, interactively | No user interaction — the parent agent's operator decides |
+| Trust direction | User → agent, at one service | Agent → agent |
+| Presented as | An independent credential | A link in the credential's `delegationChain` |
+| Limits | The agent's own scopes | The parent's scopes and `maxDelegationDepth` |
 
 See [Delegation & Sub-Delegation](./delegation.md) for the second column.
 
-## Seeing it run
-
-[Demo A — user consent across two services](../examples/consent-demo.md) is this model end to end: two independent service providers, each with its own `did:web` identity, its own status list, and its own consent grant. Step 5 of that demo — booking a hotel prompts again, because nothing the airline approved carries over — is the per-`(service, user)` rule made visible.
-
 ## Building the consent page
 
-HelixID ships the *contract* for consent, not the page. The SP owns the scope-resolution route and runs it under its own session auth:
+HelixID ships the *contract* for consent, not the page. The service owns the page, its session auth, and its scope catalog. The [`@helixid/widget`](../sdk/widget.md) package provides `resolveConsentScopes()` for the backend and a headless `createConsentController()` for the UI, so the service keeps full control of presentation.
 
-```
-GET <scopesEndpoint>?agentDid=<did>  →  { scopeOptions }
-```
+## Seeing it run
 
-`agentDid` is carried for audit correlation only and **must not change the returned catalog** — the catalog is a property of the service, not of who is asking.
-
-The [`@helixid/widget`](../sdk/widget.md) package provides `resolveConsentScopes()` on the server side and a headless `createConsentController()` for the UI, so the SP keeps full control of presentation.
+[Demo A — user consent across two services](../examples/consent-demo.md) shows the model end to end: two independent services, each with its own identity and its own consent. Booking a hotel prompts again after the airline was approved, because nothing the airline's grant says carries over.

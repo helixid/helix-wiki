@@ -47,10 +47,10 @@ HelixID uses a hybrid 3-layer architecture that delivers the trust properties of
 | --- | --- | --- |
 | Calling across an org boundary | Layer 1 | Only VCs carry portable, verifiable authority |
 | Delegating between agents | Layer 1 | The chain is the credential |
-| Making 1000+ RPS internal calls after trust is established | Layer 2 | Amortize one ~5 ms verification over many ~0.1 ms calls |
+| Making high-frequency calls after trust is established | Layer 2 | Amortize one verification call over many local token checks |
 | Developing locally, or authenticating an MCP tool inside one trust context | Layer 3 | No issuer, no infrastructure |
 
-Layer 2 is an optimization over Layer 1, not a replacement for it. The credential still has to be verified once, and the session's short TTL is what bounds your exposure if the underlying credential is revoked mid-session.
+Layer 2 is an optimization over Layer 1, not a replacement for it. With the current SDKs every Layer 1 verification is a call to a HelixID API, so Layer 2 is also how a busy service avoids making that call on every request. The credential still has to be verified once, and the session's short TTL is what bounds your exposure if the underlying credential is revoked mid-session.
 
 ## Layer 2 in practice: three paths
 
@@ -71,7 +71,7 @@ Use this mode **only when you control all verifiers** and can securely store and
 
 ### Path B — API-issued EdDSA tokens (recommended for cross-service)
 
-`helix-api` issues Ed25519-signed JWTs. Verifiers fetch the public key from `GET /v1/sessions/public-key` and verify with `verifyJWT(token, publicKeyHex)`. No shared symmetric secret is required.
+`helix-api` issues Ed25519-signed JWTs. Verifiers fetch the public key from `GET /v1/sessions/public-key` (`HelixClient.fetchSessionPublicKey()`) and verify with `HelixClient.verifySessionToken(token, publicKeyHex)`. No shared symmetric secret is required.
 
 ```bash
 POST /v1/vp/verify   { "signedVP": ..., "session": true }
@@ -89,15 +89,16 @@ If you would rather not manage a JWT secret, cache the verification result by `v
 
 ```typescript
 // first call — verify and cache
-const result = await verifyVP(incomingVP, { expectedTargetService: 'orders-service' })
-await cache.set(`vp:${result.vpId}`, result, { ttl: result.expiresInSeconds })
+const result = await verifyVP(incomingVP, client, { expectedTargetService: serviceDid })
+const ttl = Math.floor((new Date(incomingVP.expirationDate).getTime() - Date.now()) / 1000)
+await cache.set(`vp:${result.vpId}`, result, { ttl })
 
 // subsequent calls — cache hit, no re-verification
 const cached = await cache.get(`vp:${incomingVP.id}`)
 if (cached) return handleRequest(cached)
 ```
 
-The VP's own `validUntil` naturally bounds the cache TTL, and there is no secret to manage. Use this for single-verifier deployments where the cache is local to the service.
+The VP's own `expirationDate` (five minutes after signing) bounds the cache TTL, and there is no secret to manage. Use this for single-verifier deployments where the cache is local to the service.
 
 ## Choosing between the session paths
 

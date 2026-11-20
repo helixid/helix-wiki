@@ -18,21 +18,25 @@ HelixID is a **5-layer trust stack** for AI agents, not just an identity library
 | **4. Audit** | Ordered record of the whole chain — issuance, consent, presentation, verification, authorization, action, result | Adapter-based `audit_log` store + structured stdout/file |
 | **5. Revocation** | Decentralized revocation read as a static, cacheable document — no per-credential call to the issuer | Bitstring Status List |
 
-## The passport and the visa
+## The passport and the visas
 
-The stack is easier to hold in your head with a travel analogy, because HelixID's credentials really do come from two different authorities.
+The stack is easier to hold in your head with a travel analogy, because an agent's identity and its permissions really do come from different places.
 
-The **Agent-Authority VC** is a passport. Your government issues it once, it says who you are and what class of traveller you are, and it sets an outer limit on where you can go. It is not permission to enter any particular country.
+| Analogy | What it is in HelixID | Who issues it | Answers |
+| --- | --- | --- | --- |
+| **Passport** | The agent's [DID](./dids-and-identity.md) | Created when the agent is onboarded | *Who is this agent, and who vouches for it?* |
+| **Base visa** | `HelixAgentCredential` | The HelixID issuer that onboarded the agent | *What is the most this agent could ever be allowed to do?* |
+| **Service visa** | `DelegationGrantCredential` | The service, after the user says yes on its consent page | *What may it do here, for this user?* |
 
-The **Delegated Grant VC** is a visa. The destination country issues it, after *you* apply and *they* approve, and it is valid only for that country. A visa cannot make your passport say something it doesn't, and a passport alone doesn't get you through the gate.
+A passport is issued once and checked anywhere. A base visa sets the outer limit. A service visa is valid only at the service that issued it, cannot say more than the base visa allows, and a passport alone does not get an agent through the gate when it is acting for a user.
 
-The border officer checks both — and checks them against a printed list of revoked documents, not by phoning your government about you specifically. That last detail is the whole [offline verification](./offline-verification.md) argument in one image.
+The border officer checks all of them against published records — the issuer's public key and its list of revoked documents — rather than phoning the issuing authority about this particular traveller. That last detail is the whole [verification argument](./offline-verification.md) in one image.
 
 Read the mechanics in [The Two-Issuer Model](./two-issuer-model.md).
 
 ## Layer 1 — Identity
 
-Every agent gets a [DID](./dids-and-identity.md) bound to an Ed25519 keypair. The private key is generated inside the agent process, encrypted at rest in the agent's wallet, and never leaves. The issuer never sees it.
+Every agent gets a [DID](./dids-and-identity.md) bound to an Ed25519 keypair. HelixID generates the keypair when the agent is onboarded and keeps the private key encrypted in custody; the agent itself holds no key and no wallet file, only its DID. When the agent needs to present credentials, it asks HelixID to sign on its behalf. See [Security Model](../security/security-model.md) for what that custody means.
 
 Because a DID resolves to a public key without a shared secret, a verifier that has never met this agent can still check its signature.
 
@@ -42,20 +46,20 @@ Identity says *who*. Authority says *what they may do*. HelixID expresses author
 
 Two things bound authority:
 
-- **The ceiling**, set by the platform issuer at onboarding, which no downstream credential can widen.
-- **The grant**, issued by the service provider after the user consents, which narrows the ceiling to what was actually approved for that one service.
+- **The ceiling** (the base visa), set by the platform issuer at onboarding, which no downstream credential can widen.
+- **The grant** (the service visa), issued in the service's name after the user consents, which narrows the ceiling to what was actually approved for that one service.
 
-The enforcement value is the intersection: `effectiveScopes`.
+The enforcement value is what both allow: `effectiveScopes`.
 
 ## Layer 3 — Enforcement
 
-A credential nobody checks is decoration. Enforcement happens at the execution boundary — inside `verifyVP()`, inside the MCP middleware, inside the LangChain tool wrapper — before the tool runs.
+A credential nobody checks is decoration. Enforcement happens at the execution boundary — in the service's own handler after `verifyVP()`, or inside the [MCP middleware](../integrations/mcp.md) — before the tool runs.
 
-`verifyVP()` checks the VP signature, the VC signature, the validity window, revocation, the target service, and the delegation chain. What it deliberately does **not** do is decide your business rules: replay protection and the scope requirement are the verifier's own calls, because only the verifier knows its threat model. See [Authorization & Scopes](./authorization-and-scopes.md).
+`verifyVP()` sends the presentation to a HelixID API, which checks the VP signature, each credential's signature, the validity windows, revocation, the target service, and the delegation chain, and returns the scopes that apply. What it deliberately does **not** do is decide your business rules: the scope a call requires and replay protection are the verifier's own calls, because only the verifier knows its threat model. See [Authorization & Scopes](./authorization-and-scopes.md).
 
 ## Layer 4 — Audit
 
-Every step of the chain is recordable: `VC_ISSUED`, `CONSENT_GRANTED`, `VC_PRESENTED`, `VP_VERIFIED`, `VP_REJECTED`, `AUTHZ_GRANTED`, `AUTHZ_DENIED`, `TOOL_INVOKED`, `CONSENT_REVOKED`.
+Every step of the chain is recordable — issuance, consent, presentation signing, verification, the authorization decision, and the action that followed. The event types are listed in the [HTTP API reference](../sdk/http-api.md).
 
 Refusals are recorded as clearly as approvals. An audit trail that only shows successes cannot answer "did anything try and fail?", which is usually the more interesting question. Events are written through an adapter-based `audit_log` store plus structured stdout or file output, and are readable via `GET /v1/audit-log` or the operator Console.
 

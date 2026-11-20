@@ -8,7 +8,7 @@ description: Where help is most useful, how to set up the development environmen
 
 # How to Contribute
 
-Contributions are welcome. This page is the orientation; the [`CONTRIBUTING.md`](https://github.com/helixid/helixid/blob/main/CONTRIBUTING.md) in the code repository is the authoritative and complete version, and is the one to follow when actually opening a PR.
+Contributions are welcome. This page is the orientation; each repository's own `CONTRIBUTING.md` is the authoritative process for that repository, and is the one to follow when actually opening a PR — start with [`helixid/helixid`](https://github.com/helixid/helixid/blob/main/CONTRIBUTING.md).
 
 ## Where help is most useful
 
@@ -47,31 +47,48 @@ For anything beyond a small fix, open an issue or a [GitHub Discussion](https://
 
 ## Development setup
 
-Prerequisites and bootstrap:
+Which repository to clone depends on what you are changing — see [Project Structure](../get-started/project-structure.md#which-repository-does-my-change-belong-in).
+
+The Node repositories need Node `^20.19.0 || >=22.12.0` (20.0–20.18 will not work) and pnpm 9 or later; `corepack enable` picks up the pinned `pnpm@9.15.2`. Each has an `.nvmrc`. Bootstrap is the same in all of them:
 
 ```bash
 pnpm install
 pnpm build
 ```
 
-The JS/TS repositories are pnpm workspaces — `pnpm`, not `npm`. Internal dependencies are linked with `workspace:*`, and phantom dependencies are deliberately impossible. See [Design Decisions](../architecture/design-decisions.md).
+Use `pnpm`, not `npm`. In `helix-sdk-js` the packages depend on each other through the workspace (`workspace:^`). `helixid` is different: it consumes `@helixid/core` and `@helixid/sdk-js` as published npm packages, so a change in `helix-core` reaches the server only through a release.
 
-Which repository to clone depends on what you are changing — see [Project Structure](../get-started/project-structure.md#which-repository-does-my-change-belong-in).
-
-Configure `.env` from `.env.example` before running anything that needs the API. The default runtime is SQLite plus an in-memory cache plus `did:web`, with no external infrastructure. Full variable list: [Environment & Configuration](../self-hosting/configuration.md).
+For the server, configure `.env` from `.env.example` before running anything that needs the API. `.env.example` sets up SQLite, an in-memory cache and `did:web`, with no external infrastructure. Full variable list: [Environment & Configuration](../self-hosting/configuration.md).
 
 ```bash
 set -a; source .env; set +a
 pnpm dev
 ```
 
-## Running tests
+`helix-sdk-py` is a plain Python project:
 
 ```bash
-pnpm test
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev,all]"
 ```
 
-End-to-end tests live in the `e2e/` package. Hedera testnet writes are gated behind `HEDERA_E2E_TESTNET`, which must stay `false` in standard CI.
+## Running tests
+
+The script names differ per repository. These are the ones that exist in each `package.json`:
+
+| Repository | Before opening a PR | Also available |
+| --- | --- | --- |
+| `helixid` | `pnpm test:non-live` | `pnpm test:all`, `pnpm test:live` (needs a configured `.env`), `pnpm test:e2e`, `pnpm lint`, `pnpm typecheck` |
+| `helix-core` | `pnpm test` (live tests excluded, with coverage thresholds) | `pnpm test:non-live`, `pnpm test:unit`, `pnpm test:security`, `pnpm test:live`, `pnpm lint`, `pnpm typecheck` |
+| `helix-sdk-js` | `pnpm test` (all packages, through Turborepo) | `pnpm test:unit`, `pnpm test:non-live`, `pnpm lint`, `pnpm typecheck`; `pnpm --filter @helixid/sdk-js test:security` |
+| `helix-console` | `pnpm test` (with coverage) | `pnpm test:non-live`, `pnpm typecheck`, `pnpm build` |
+| `helix-sdk-py` | `pytest` | `pytest -v` (what CI runs), `pytest tests/<file>` |
+
+:::note[`helixid` has no `pnpm test`]
+The server repository has no bare `test` script, and no `lint:fix`. Its `CONTRIBUTING.md` still lists both in its checklist and quick-reference table; use `pnpm test:non-live` and `pnpm format`. CI there runs the workspace variants, `pnpm workspace:test:non-live` and `pnpm workspace:typecheck`, which also cover `examples/` and `e2e/`.
+:::
+
+In `helixid`, end-to-end tests live in the `e2e/` package. Hedera testnet writes are gated behind `HEDERA_E2E_TESTNET`, which must stay `false` in standard CI.
 
 The demo apps have their own test suites — for instance, the consent demo's regression test asserts on consent-prompt **counts**:
 
@@ -79,11 +96,17 @@ The demo apps have their own test suites — for instance, the consent demo's re
 pnpm --filter @helixid/example-e2e-consent-demo test
 ```
 
+In `helix-core`, run `pnpm test:security` before opening any PR that touches verification, keys, or anything else crypto-adjacent.
+
+## Changesets
+
+`helix-core` and `helix-sdk-js` version their packages with [changesets](https://github.com/changesets/changesets). If your change there is user-visible, add one with `pnpm changeset` and commit the generated file. `helixid` and `helix-console` are not published to npm and have no changeset step. `helix-sdk-py` uses release-please, which reads Conventional Commit messages, so there is nothing to add by hand. See [Releases](./coding-standards.md#releases).
+
 ## Repository layout
 
 See [Project Structure](../get-started/project-structure.md) for the full tree and which workspace owns what.
 
-The rule that matters most for contributors: **`helix-core` owns everything cryptographic.** Adapters and integrations must not hand-roll VP canonicalization, base58/base64url encoding, Ed25519 signing, or verification semantics.
+The rule that matters most for contributors: **`helix-core` and the SDKs own everything cryptographic.** Adapters, integrations and examples must not hand-roll VP canonicalization, base58/base64url encoding, Ed25519 signing, or verification semantics.
 
 ## Licensing of contributions
 

@@ -87,10 +87,11 @@ curl -i "${H[@]}" -H 'authorization: Bearer demo-reader' $MCP -d '{"jsonrpc":"2.
 
 ```text
 HTTP/1.1 403 Forbidden
-www-authenticate: Bearer error="insufficient_scope", error_description="Required scope: orders:admin", ...
+www-authenticate: Bearer error="insufficient_scope", error_description="Required scope: orders:admin", scope="orders:admin", ...
 ```
 
-The reader is authenticated but lacks `orders:admin`, so the refund is refused before the tool runs. A tool that is not
+The reader is authenticated but lacks `orders:admin`, so the refund is refused before the tool runs. The challenge names
+the scope the tool requires (`scope="orders:admin"`), so an OAuth client can request it and retry. A tool that is not
 in the server's scope map at all — say `delete_order` — is refused the same way: the map is deny-by-default.
 
 ## 5. Refund as the admin
@@ -109,6 +110,12 @@ refunded: that is business logic, not authorization. Orders live in memory and r
   API you run locally, and `SERVICE_DID` set to the server's DID. Agent presentations are then verified by that API, and
   every decision appears under **Audit** in the console as *Access Granted* or *Access Denied*. The sample's README
   lists every variable.
-- **A real authorization server.** Drop demo mode and set `OAUTH_ISSUER` and `OAUTH_JWKS_URI`; access tokens must be JWTs
-  whose audience is the server's MCP URL.
+- **A real authorization server.** Drop demo mode and set `OAUTH_ISSUER`. The issuer URL is enough: its keys are read
+  from its metadata, and access tokens must be JWTs whose audience is the server's MCP URL (`MCP_RESOURCE`). For an
+  authorization server that issues opaque tokens, add `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET` and tokens are checked
+  by RFC 7662 introspection. `OAUTH_JWKS_URI` and `OAUTH_INTROSPECTION_URL` give the endpoints explicitly and skip
+  discovery.
+- **Several identity providers.** Set `OAUTH_ISSUERS` to a JSON array of trusted tenants: provider presets (`entra`,
+  `auth0`, `okta`, `keycloak`) or plain `{ "issuer": ... }` entries. Tokens are routed to their issuer by `iss`; an
+  issuer not in the list is refused.
 - **Your own server.** [MCP Integration](../integrations/mcp.md) explains how the sample is wired and how to do the same.
