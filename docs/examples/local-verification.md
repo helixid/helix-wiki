@@ -1,101 +1,124 @@
 ---
 id: local-verification
-title: Local Verification Scripts
-sidebar_label: Local Verification
+title: Verifier Scripts
+sidebar_label: Verifier Scripts
 sidebar_position: 5
-description: Standalone scripts for VP verification, scope checks, self-verification, revocation, and the session bridge.
+description: Standalone scripts for VP verification through the API, scope checks, self-verification, revocation, and the session bridge.
 ---
 
-# Local Verification Scripts
+# Verifier Scripts
 
-Small, self-contained scripts in [`examples/`](https://github.com/helixid/helixid/tree/main/examples) that exercise one behaviour each. They mint fresh credentials and sign fresh VPs automatically — no fixture file needed.
+Small, self-contained scripts in [`examples/`](https://github.com/helixid/helixid/tree/main/examples) that exercise one behaviour each. They run against an API you start yourself.
 
-Start the API first:
+Start the API first, with `HELIX_ADMIN_API_KEY` set in `.env`:
 
 ```bash
 set -a; source .env; set +a
 pnpm dev
 ```
 
+Run the scripts from the repository root in another terminal. Each loads the root `.env` itself and reads the API address from `API_BASE_URL` (default `http://localhost:3000`).
+
+## How the scripts get a presentation
+
+No fixture file is involved, and neither is a wallet. The shared helper `createFreshSignedVP()` in `verifier-example-utils.ts`:
+
+1. requests an enrollment token from `POST /v1/enrollment-tokens`,
+2. onboards a new agent with `client.onboardAgent()`, which returns `{ agentDid, vcId }` — the server generates and holds the agent's key,
+3. reads the credential back with `client.getVC(vcId)`,
+4. asks the API to sign a presentation with `client.signVP(agentDid, targetService, { userDid, vcId })`.
+
+Step 4 is `POST /v1/agents/:did/vp`, which is admin-key gated in the open-source server. The helper throws if `HELIX_ADMIN_API_KEY` is not set.
+
 ## The scripts
 
 | Command | What it does |
 | --- | --- |
-| `pnpm example:verify-vp` | Creates a fresh VP and verifies it via `POST /v1/vp/verify` |
-| `pnpm example:verify-vp:sdk` | Creates a fresh VP and verifies it **locally** — no `/v1/vp/verify` call |
-| `pnpm example:verify-vp:session-bridge` | Creates a fresh VP, calls `/v1/vp/verify` with `session: true`, and verifies the returned JWT using `/v1/sessions/public-key` |
-| `pnpm example:scope-check` | The authorization-only subset — scope and target-service checks on an already-verified, active payload |
-| `pnpm example:self-verify` | Verifies a presentation from first principles, without the SDK's verifier |
-| `pnpm example:revocation-check` | Onboards a fresh credential, revokes it, verifies the status bit flipped, then onboards a replacement |
+| `pnpm example:verify-vp` | Gets a fresh VP and posts it to `POST /v1/vp/verify` with a plain `fetch` |
+| `pnpm example:verify-vp:sdk` | Gets a fresh VP and verifies it with the SDK's `verifyVP(vp, client, options)`, then issues and checks a local HS256 session token with `SessionManager` |
+| `pnpm example:verify-vp:session-bridge` | Gets a fresh VP, calls `/v1/vp/verify` with `session: true`, and verifies the returned EdDSA session JWT with `verifyJWT()` and the key from `/v1/sessions/public-key` |
+| `pnpm example:scope-check` | Runs five fixed scenarios through a scope and target-service check on an already-verified payload. It makes no API call |
+| `pnpm example:self-verify` | Gets a fresh VP and checks it step by step without calling `/v1/vp/verify` |
+| `pnpm example:revocation-check` | Meant to onboard a credential, revoke it, watch the status bit flip, and onboard a replacement. Currently fails — see [Known issues](#known-issues) |
+| `pnpm example:verifier:vp-cache` | Meant to verify once and serve repeats of the same `vpId` from a cache. Currently fails — see [Known issues](#known-issues) |
 
-`verify-vp:sdk` performs local verification and still fetches the DID and status resources the credential references, as needed — the [two static reads](../concepts/offline-verification.md). `verify-vp-session-bridge` uses `HELIX_API_URL` (or `API_BASE_URL`) as-is for API calls.
+:::note[`verify-vp:sdk` calls the API]
+`verifyVP()` in `@helixid/sdk-js` is itself an HTTP call to `POST /v1/vp/verify` on the HelixID API the verifier chose and trusts. The SDK has no local verification path. Signature, validity window, status-list and delegation-chain checks all run on that API.
 
-The pair worth running back to back is `verify-vp` and `verify-vp:sdk`: same credential, same result, one going through the API and one computing everything in-process. That contrast is the offline-verification claim in executable form.
+So `verify-vp` and `verify-vp:sdk` reach the same endpoint: one with `fetch`, one through the SDK. What neither involves is a synchronous call to the *issuer* asking it to vouch for this specific request. See [What "Offline Verification" Actually Means](../concepts/offline-verification.md).
+:::
+
+`verify-vp:session-bridge` also reads `HELIX_MODE` (`dev` or `prod`) and rewrites the API URL scheme to `http` or `https` to match. If the API refuses the session request, it falls back to `verifyVP()` plus a local `SessionManager` token signed with `JWT_SECRET`.
+
+### Replay is the verifier's job
+
+A VP is not single-use. Neither the API nor the SDK tracks consumed `vpId`s: a VP is valid for five minutes and bound to one target service, and anything stricter is up to the verifier. A comment in `verify-vp-sdk.ts` says the API enforces single-use VPs; that is not the case. If you need single use, record each `vpId` you accept until its `expirationDate` and reject repeats.
+
+## Known issues
+
+Found by reading the scripts against the package versions the repository pins (`@helixid/core` `^2.0.1`, `@helixid/sdk-js` `^0.4.0`), not by running them:
+
+- **`example:revocation-check`** onboards its agents by posting to `POST /v1/enroll` with a locally generated keypair. That route no longer exists — onboarding is `POST /v1/onboard` — so the script stops at its first step.
+- **`example:verifier:vp-cache`** calls `verifyVP(vp, options)` without the `client` argument. `verifyVP` requires a `HelixClient` as its second argument, so the call fails.
+- **`examples/README.md`** lists a "Path A" command for `examples/verifier-session-cycle.ts`. That file is not in the repository; `example:verify-vp:session-bridge` is the session example that exists.
+
+To see revocation working end to end today, use [use case 3 of the Travel Concierge demo](./travel-concierge.md).
 
 ## Verifying a presentation by hand
 
-`self-verify` follows the procedure below, which is worth knowing because it is what makes the credential format checkable by anyone.
+`self-verify` shows what a verifier takes on when it does not call `/v1/vp/verify`: every check below, plus replay storage. Missing one is a security gap. The steps, as the script performs them:
 
-### 1. DID resolution
+### 1. VP expiry
 
-For `did:hedera:testnet:<topicId>:<sequenceNumber>`, fetch:
+Reject if `signedVP.expirationDate` is not in the future.
 
-```
-https://testnet.mirrornode.hedera.com/api/v1/topics/{topicId}/messages/{sequenceNumber}
-```
+### 2. Resolve the holder's key
 
-Decode the message payload and parse the DID document JSON.
+For `did:key`, the key is in the identifier: strip `did:key:` and decode the multibase value. For `did:web`, fetch the DID document directly — `/.well-known/did.json` for a bare host, `/<path>/did.json` otherwise, over `https` (or `http` for a loopback host) — check that its `id` matches the DID, and read the Ed25519 `verificationMethod` (`publicKeyMultibase`, or `publicKeyHex`). The script supports only these two methods.
 
-### 2. Public key extraction
+### 3. VP signature
 
-Locate a `verificationMethod` entry of type `Ed25519VerificationKey2020`. Read `publicKeyMultibase` and decode from base58btc — stripping the leading `z` — to raw bytes.
+1. Remove `proof` from the VP.
+2. Hash the canonical JSON of the rest (`hashCanonicalPayload()`).
+3. Decode `proof.proofValue` from base58btc, stripping the leading `z`.
+4. Verify the Ed25519 signature against the holder's key (`verifySignature()`).
 
-### 3. Signature verification
+### 4. VC signature
 
-1. Remove `proof` from the VP payload.
-2. Canonicalize the JSON with recursively sorted keys.
-3. SHA-256 the canonical JSON bytes.
-4. Decode `proof.proofValue` from base58btc.
-5. Verify the Ed25519 signature with the extracted public key.
+Resolve the issuer's key the same way from `vc.issuer`, or take it from `HELIX_ISSUER_PUBLIC_KEY` if set, and verify the credential's proof as in step 3.
 
-### 4. Status list check
+### 5. VC expiry
 
-Fetch the VC status list URL from `vc.credentialStatus.statusListCredential`. Decode `encodedList` — base64url decode, then gzip decompress — and read the bit at `statusListIndex`. `0` means active; `1` means revoked.
+Reject if `vc.validUntil` is not in the future.
 
-### 5. Expiry
+### 6. `delegatedBy`
 
-Reject if `signedVP.expirationDate` is not in the future. Reject if the embedded `vc.expirationDate` is not in the future.
+`signedVP.delegatedBy` is the DID of the user the agent acts for. The script only prints it; a real verifier checks it against its own user or session records.
 
-:::warning[Replay prevention is your obligation when you self-verify]
-If you self-verify rather than calling HelixID's verify endpoint, you must store every `signedVP.id` you have successfully verified and reject any subsequent request presenting the same `id`. HelixID's verify endpoint handles this automatically. Self-verifying without this tracking leaves you vulnerable to replay attacks.
+### 7. Status list
+
+Fetch `vc.credentialStatus.statusListCredential`, and read the bit at `statusListIndex` from `credentialSubject.encodedList` with `getBit()`. The list is base64url-encoded and gzip-compressed. `0` means active; `1` means revoked. This fetch is a network dependency you cannot skip: a well-formed VP from a revoked credential is still invalid.
+
+### 8. Replay
+
+Record `signedVP.id` and reject it if it is presented again. The script prints this as a required check rather than implementing a store.
+
+The script checks one agent credential. It does not walk a delegation chain or evaluate consent grants; `POST /v1/vp/verify` does both.
+
+:::warning[Use the SDK's helpers for the cryptography]
+The script imports `hashCanonicalPayload`, `verifySignature`, `base58btcDecode`, `multibaseToPublicKeyHex` and `getBit` from `@helixid/sdk-js`. Do the same rather than re-implementing canonicalization or encoding.
 :::
-
-## Test vector
-
-For checking an implementation against a known-good value:
-
-- **Unsigned VP**
-
-  ```json
-  {"@context":["https://www.w3.org/2018/credentials/v1"],"type":["VerifiablePresentation"],"id":"vp:helix:test-vector-1","holder":"did:hedera:testnet:agent1","verifiableCredential":[{"id":"vc:test:1"}],"nonce":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","expirationDate":"2030-01-01T00:00:00.000Z","delegatedBy":"did:hedera:testnet:user1","targetService":"amazon"}
-  ```
-
-- **Canonical JSON** — the same as above (already sorted)
-- **SHA-256** — `7f9517e90b32ac882d9f615f0eea9d53d72abf4cc78f6dfb30ccf90f84687c5a`
-- **Test private key** — `4f3edf983ac636a65a842ce7c78d9aa706d3b113bce036f3f6fdc57d4fcbfe2e`
-
-This key is a published test vector. It is worthless outside this exercise — never use it for anything real.
 
 ## Verifier fast-path cycles
 
-Two further scripts demonstrate the repeat-call patterns from [Hybrid 3-Layer Design](../architecture/hybrid-layers.md):
+Two scripts demonstrate the repeat-call patterns from [Hybrid 3-Layer Design](../architecture/hybrid-layers.md):
 
 ```bash
-# Path A — verifier-issued JWT session
+# Path A — session JWT after one verification
 pnpm example:verify-vp:session-bridge
 
 # Path B — VP-result caching, no JWT
 pnpm example:verifier:vp-cache
 ```
 
-In both, the verifier owns the policy and infrastructure decisions: scope checks, the replay/cache store, TTLs, headers, and secrets.
+In both, the verifier owns the policy and infrastructure decisions: scope checks, the replay/cache store, TTLs, headers, and secrets. Path B is the script listed under [Known issues](#known-issues).

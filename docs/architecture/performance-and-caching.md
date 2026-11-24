@@ -3,100 +3,144 @@ id: performance-and-caching
 title: Performance & Caching
 sidebar_label: Performance & Caching
 sidebar_position: 3
-description: Where the latency actually is, the shipped cache defaults, and why the DLT write path never touches verification.
+description: Where the latency actually is, what is cached and for how long, and why the DLT write path never touches verification.
 ---
 
 # Performance & Caching
 
-> "DLT is slow" is the first objection. Here's the data.
+> "DLT is slow" is the first objection. Here is where the time actually goes.
 
-The DLT latency penalty exists only on the **write path** — DID anchoring and credential issuance. The **verification hot path**, which is what matters for real-time agent interactions, never touches the ledger.
+Any ledger latency exists only on the **write path** — anchoring a DID. The **verification path**, which is what matters for real-time agent interactions, never writes to a ledger, and with `did:key` or `did:web` never reads one either.
 
-## Numbers
+## What a verification costs
 
-| Operation | HelixID (cached) | JWT/OAuth | Raw Ed25519 |
+With the current SDKs, `verifyVP()` is an HTTP call to a HelixID API (`POST /v1/vp/verify`) that the verifier chooses and trusts. There is no in-process verification path in the SDK. So the cost of one verification is one round trip to that API, plus whatever the API has to fetch that it does not already have cached.
+
+| Step | Where it runs | Network hop? | Cached? |
 | --- | --- | --- | --- |
-| Credential verification | ~1-6 ms | 1-5 ms | ~0.1 ms |
-| DID resolution | ~0.01 ms (cache hit) | N/A | N/A |
-| Revocation check | ~0.01 ms (cached) | 50-200 ms (introspection) | Not supported |
-| Full verification (warm) | ~1-6 ms | 1-5 ms | ~0.1 ms |
+| Verifier calls `POST /v1/vp/verify` | Verifier → HelixID API | Yes, always | No. One call per verification, unless you use a [session token](#session-token-bridge). |
+| Resolve the holder's and each issuer's DID | Inside the API | `did:key`: none. `did:web`: one HTTPS GET. `did:hedera`: one mirror-node GET. | Yes, in process: 5 minutes for `did:web`, 15 minutes for `did:hedera`. |
+| Check signatures on the VP, each credential, and each delegation link | Inside the API | No. CPU only. | Not needed. |
+| Check revocation against a status list this API hosts | Inside the API | No. Read from the API's own store. | Yes: the status-list cache below. |
+| Check revocation against a status list hosted elsewhere | Inside the API | One HTTPS GET per credential that points at it. | No. Fetched on every verification. |
+| Write the `VP_VERIFIED` / `VP_REJECTED` audit event | Inside the API | Database write. | No. |
 
-"Warm" means the DID document and status list are already cached. Cold, each is a single static-document fetch.
+So a warm verification of credentials issued by the same instance is one round trip from the verifier, signature checks, and a database write. A cold one adds a document fetch per uncached DID.
 
-The row that matters is **revocation**. A token introspection call costs 50–200 ms and **cannot be cached** — being asked fresh every time is its entire purpose. A status list is one shared static document, so it caches, sits on a CDN, and costs ~0.01 ms on a hit. Nothing in HelixID's path asks the issuer to authorize the request. See [What "Offline Verification" Actually Means](../concepts/offline-verification.md).
+This page does not publish millisecond figures. The numbers depend on where the verifier sits relative to the API, on the storage backend, and on how many credentials and delegation links the presentation carries. Measure in your own deployment.
 
-**Context:** A single LLM inference call takes 500 ms–5 s. HelixID verification at ~5 ms is noise in that budget. You get the same verification speed as JWT, backed by cryptographic trust that JWT can never provide.
+### What is never on the path
 
-## Where HelixID actually wins on latency
+Nothing in verification asks the *issuer* to vouch for this specific request. The issuer signed the credential in advance; the verifier's API checks that signature and reads a status list. Compare a token-introspection design, where every check is a call to the party that issued the token, and that call cannot be cached because being asked fresh is its entire purpose. A status list is one shared static document covering every credential from that issuer, so it caches and can sit behind a CDN. See [what verification does and does not depend on](../concepts/offline-verification.md).
 
-Not on a single internal call — there, a cached OAuth token is roughly as fast, and HelixID adds complexity for no latency benefit.
+**Context:** an LLM inference call typically takes from hundreds of milliseconds to several seconds. One HTTP round trip for verification is small against that budget.
 
-The win is **multi-hop delegation**. Each hop is a local signature verification (~1 ms) rather than an issuer callback (500 ms–2 s). A five-hop chain lands around ~55 ms against 400–800 ms+ for per-hop OAuth callbacks. Position accordingly: use OAuth for internal APIs where it is perfect; add HelixID for cross-org APIs and delegation chains. See [Comparisons](../comparisons/why-not-just-use.md).
+## Where HelixID helps on latency, and where it does not
+
+Not on a single internal call. A cached OAuth token is checked in process, and a HelixID verification is a network call. For internal APIs inside one trust domain, OAuth is the simpler and faster choice.
+
+The case for HelixID is **delegation chains and cross-organization calls**. A delegated credential embeds its whole chain, so the verifier checks every hop in the one verify call, without asking any delegating agent or issuer to approve the request. The number of round trips from the verifier stays at one however long the chain is; what grows is signature checks and, on a cold cache, DID lookups. See [Comparisons](../comparisons/why-not-just-use.md).
 
 ## Caching architecture
 
-### DID documents
+There are three separate caches. They have different owners and different knobs.
 
-Cached in-process **automatically** — no configuration needed.
+### 1. The verifier's DID resolver cache
+
+Used inside `verifyVP`. In process memory only, fixed TTLs, no configuration.
 
 | Method | TTL |
 | --- | --- |
 | `did:web` | 5 minutes |
 | `did:hedera` | 15 minutes |
-| `did:key` | Not applicable — the key is in the identifier |
+| `did:key` | Not cached — the key is in the identifier |
 
-`DID_CACHE_L1_TTL_SECONDS` (default `300`) governs the API-side cache.
+Deactivating a DID through the API evicts it from this cache on the instance that handled the request.
 
-The TTL is a security parameter as much as a performance one — it bounds how long a verifier can keep using a rotated key.
+The TTL is a security parameter as much as a performance one — it bounds how long a verifier can keep using a rotated or deactivated key.
 
-### Status lists
+### 2. The API's DID and status-list caches
 
-**Fetched per verification by default.** `fetchStatusList` is a plain fetch; there is no built-in verifier-side cache.
+Used by the API when it serves DID records (`GET /v1/dids/:did`) and the status list it hosts (`GET /v1/status-list/:listId`, and its own revocation checks during verification). These are two-layer caches:
 
-The bitstring is a static document shared by every credential from that issuer, so it caches well — pass a `statusListResolver` to `verifyVP()` to serve it from your own cache, CDN, or local storage. `helix-api` already does this for the list it hosts.
+| Layer | What it is | When it is used |
+| --- | --- | --- |
+| **L1** | A map in the API process's memory. | Always, unless `CACHE_ENABLED=false`. |
+| **L2** | Redis, shared between API instances. | Only when `HELIX_CACHE_ADAPTER=redis`, `CACHE_L2_ENABLED=true`, and `REDIS_URL` is set. |
 
-```typescript
-const result = await verifyVP(incomingVP, {
-  expectedTargetService: 'orders-service',
-  statusListResolver: myCachedResolver,
-})
-```
+A read checks L1, then L2; an L2 hit is copied back into L1. A write goes to both. An invalidation deletes from both.
 
-`STATUS_LIST_CACHE_L1_TTL_SECONDS` (default `60`) governs the API-side serve cache, which applies only when a cache adapter is configured.
+| Variable | Default | Bounds | What it bounds |
+| --- | --- | --- | --- |
+| `DID_CACHE_L1_TTL_SECONDS` | `300` | 1–3600 | In-process staleness of a DID record. |
+| `DID_CACHE_L2_TTL_SECONDS` | `900` | 1–86400 | Redis staleness of a DID record. |
+| `STATUS_LIST_CACHE_L1_TTL_SECONDS` | `60` | 1–3600 | In-process staleness of the hosted status list. |
+| `STATUS_LIST_CACHE_L2_TTL_SECONDS` | `300` | 1–86400 | Redis staleness of the hosted status list. |
+
+Revoking a credential deletes the status-list entry from both layers, and changing or deactivating a DID deletes its entry from both layers. That eviction reaches the instance that handled the request and the shared Redis layer. **Other API instances keep their own L1 copy until its TTL runs out.** With more than one instance, a revocation can therefore take up to `STATUS_LIST_CACHE_L1_TTL_SECONDS` to be seen everywhere, with or without Redis.
 
 :::caution[This TTL is a revocation-latency dial]
-Over-aggressive caching leads to use-after-revocation — a revoked agent keeps working until the cache expires. Choose the TTL from how quickly revocation must take effect, and treat it as part of your threat model rather than as a throughput knob.
+Over-aggressive caching leads to use-after-revocation — a revoked agent keeps working until the cache expires. Choose the L1 TTL from how quickly revocation must take effect across all your instances, and treat it as part of your threat model rather than as a throughput knob.
 :::
 
-### Session token bridge
+### 3. HTTP caching by whoever fetches from the API
 
-For high-frequency scenarios (1000+ RPS), verify the VC once (~5 ms) and issue an ephemeral JWT for subsequent calls (~0.1 ms). See [Hybrid 3-Layer Design](./hybrid-layers.md).
+The API sets `Cache-Control` on the public documents it serves, so other verifiers, proxies, and CDNs may hold them:
+
+| Document | `max-age` |
+| --- | --- |
+| `/.well-known/did.json`, `/agents/:slug/did.json`, `/services/:slug/did.json` | 1 hour |
+| `GET /v1/status-list/:listId` | 5 minutes |
+| `GET /v1/sessions/public-key` | 1 hour |
+
+These are fixed in the route code. A party that honours them can see a revocation up to five minutes late and a changed DID document up to an hour late, independently of the TTLs above.
+
+Status lists hosted by *another* party are not cached by the API at all: it fetches them on each verification. That keeps revocation fresh for externally hosted lists and costs one request each time.
+
+## Session token bridge
+
+For high-frequency calls from the same agent, verify the presentation once with `session: true` and receive a short-lived EdDSA session token. Its public key is served at `GET /v1/sessions/public-key`, so later requests carrying the token can be checked without another call to `POST /v1/vp/verify`. See [Hybrid 3-Layer Design](./hybrid-layers.md).
 
 The session TTL is the same trade-off in a different place: a longer session means fewer verifications and a longer window in which a revoked credential still gets service. `JWT_SESSION_TTL_SECONDS` defaults to `600`.
 
-## Current cache adapters
+The signing key is generated when the API starts. A restart invalidates outstanding tokens, and each API instance has its own key.
+
+## Cache adapters
 
 | Adapter | Status |
 | --- | --- |
 | `memory` — L1 in-process | Shipped, and the default |
-| Redis / L2 shared cache | <span className="helix-badge helix-badge--planned">Planned</span> — parked for a future release, not required for current runs |
+| `redis` — L1 plus shared L2 | Shipped. Needs `REDIS_URL`. |
 
 ```bash
-HELIX_CACHE_ADAPTER=memory
+HELIX_CACHE_ADAPTER=redis
+REDIS_URL=redis://localhost:6379
 CACHE_ENABLED=true
+CACHE_L2_ENABLED=true
 DID_CACHE_L1_TTL_SECONDS=300
+DID_CACHE_L2_TTL_SECONDS=900
 STATUS_LIST_CACHE_L1_TTL_SECONDS=60
+STATUS_LIST_CACHE_L2_TTL_SECONDS=300
 ```
 
-Only the L1 TTLs currently matter. See [Environment & Configuration](../self-hosting/configuration.md) and the [Roadmap](../roadmap.md).
+See [Environment & Configuration](../self-hosting/configuration.md#cache).
 
 ## TTLs worth setting deliberately
 
 | Variable | Default | What it bounds |
 | --- | --- | --- |
-| `ENROLLMENT_TOKEN_TTL_SECONDS` | 900 | How long a one-time bootstrap token stays usable |
-| `CHALLENGE_TTL_SECONDS` | 300 | Onboarding/user-challenge nonce validity |
-| `VP_TTL_SECONDS` | 300 | How long a presentation is replayable before expiry |
 | `JWT_SESSION_TTL_SECONDS` | 600 | Session-token lifetime after one verification |
-| `DID_CACHE_L1_TTL_SECONDS` | 300 | Staleness window for a rotated key |
-| `STATUS_LIST_CACHE_L1_TTL_SECONDS` | 60 | Staleness window for a revocation |
+| `DID_CACHE_L1_TTL_SECONDS` | 300 | Staleness window for a changed DID record, per instance |
+| `DID_CACHE_L2_TTL_SECONDS` | 900 | The same, in Redis |
+| `STATUS_LIST_CACHE_L1_TTL_SECONDS` | 60 | Staleness window for a revocation, per instance |
+| `STATUS_LIST_CACHE_L2_TTL_SECONDS` | 300 | The same, in Redis |
+
+Some lifetimes are fixed in code in `@helixid/core` 3.0.0 and are not configurable:
+
+| Lifetime | Value |
+| --- | --- |
+| A signed presentation | 5 minutes from signing. It is replayable to its one target service until then; the API does not track consumed `vpId`s. |
+| A challenge nonce | 5 minutes |
+| An enrollment token | Set per token with `expiry` (whole days) on `POST /v1/enrollment-tokens`; no expiry if omitted |
+
+`VP_TTL_SECONDS`, `CHALLENGE_TTL_SECONDS`, and `ENROLLMENT_TOKEN_TTL_SECONDS` are still accepted by the config schema but are not read. See [Environment & Configuration](../self-hosting/configuration.md#tokens-and-ttls).

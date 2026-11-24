@@ -3,16 +3,17 @@ id: quick-start
 title: Quick Start
 sidebar_label: Quick Start
 sidebar_position: 2
-description: Three ways to run HelixID locally — the fastest path with a running API, and two Docker demos.
+description: Four ways to run HelixID locally — the fastest path with a running API, the MCP quickstart, and two Docker demos.
 ---
 
 # Quick Start
 
-Three ways in, depending on what you want to see. All run locally.
+Four ways in, depending on what you want to see. All run locally.
 
 | Path | Time | Needs | Best for |
 | --- | --- | --- | --- |
-| **[Fastest path](#fastest-path-one-running-api)** | 5 min | Node/Python + a running `helix-api` | Seeing the VP build/verify cycle in code |
+| **[Fastest path](#fastest-path-one-running-api)** | 5 min | Node/Python + a running `helix-api` | Seeing the onboard → sign → verify cycle in code |
+| **[MCP quickstart](./mcp-quickstart.md)** | 5 min | Node + pnpm | Putting an MCP server behind per-tool scopes, with no HelixID server needed to start |
 | **[Consent demo](../examples/consent-demo.md)** | ~10 min | Docker | Watching a **user** grant consent and following the full audit trail — the best overview of what HelixID is for |
 | **[Travel Concierge demo](../examples/travel-concierge.md)** | ~10 min | Docker + LLM key | A real LLM agent calling a protected MCP tool, plus revocation and delegation |
 
@@ -127,10 +128,11 @@ print(agent_did)  # did:key:z6Mk...
 import { verifyVP } from '@helixid/sdk-js'
 
 // The server signs on the agent's behalf -- it holds the only copy of the key
-const vp = await client.signVP(agentDid, 'orders-service')
+const serviceDid = 'did:web:orders.example.com' // the DID of the service being called
+const vp = await client.signVP(agentDid, serviceDid)
 
 const result = await verifyVP(vp, client, {
-  expectedTargetService: 'orders-service',
+  expectedTargetService: serviceDid,
   allowSelfSigned: true, // dev only — remove in production
 })
 
@@ -145,12 +147,13 @@ console.log(result.valid, result.agentDid, result.privilegeScopes)
 from helix_sdk import verify_vp
 
 # The server signs on the agent's behalf -- it holds the only copy of the key
-vp = client.sign_vp(agent_did, "orders-service")
+service_did = "did:web:orders.example.com"  # the DID of the service being called
+vp = client.sign_vp(agent_did, service_did)
 
 result = verify_vp(
     vp,
     client,
-    expected_target_service="orders-service",
+    expected_target_service=service_did,
     allow_self_signed=True,  # dev only — remove in production
 )
 
@@ -161,19 +164,21 @@ print(result["valid"], result["agentDid"], result["privilegeScopes"])
 </TabItem>
 </Tabs>
 
-Full round trip against a real, running issuer — no wallet file, no Hedera. For any valid HelixID scenario, use a real bootstrap token enrollment so the root VC is signed by the trusted issuer.
+That is the full round trip against a real, running issuer: the agent's DID is its passport, and the credential it received at onboarding is its base visa. The presentation names the target service by DID; a presentation signed for one service is rejected by another.
+
+This path has the agent acting as itself. To act for a **user**, the service issues a consent grant first — see [The Two-Issuer Model](../concepts/two-issuer-model.md), or run the consent demo below.
 
 ## The two Docker demos
 
 Both demos are documented in full under [Examples](../examples/overview.md):
 
-- **[Demo A — user consent across two services](../examples/consent-demo.md)** — a travel agent books a flight and a hotel from two independent service providers, each with its own `did:web` identity, its own status list, and its own consent grant. No LLM API key required.
+- **[Demo A — user consent across two services](../examples/consent-demo.md)** — a travel agent books a flight and a hotel from two independent service providers, each with its own `did:web` identity and its own consent grant. No LLM API key required.
 - **[Demo B — LLM agent with a protected MCP tool](../examples/travel-concierge.md)** — a real LLM travel agent enrolls with HelixID, receives a scoped credential, and calls a protected MCP booking tool. Also covers revocation and agent-to-agent delegation.
 
 ## Building your own integration
 
 The demos run the full trust chain for you. If you're wiring HelixID into your own agent or service, start with [Installation & Modes](./installation-and-modes.md) for the API setup and enrollment flow, then:
 
-- [Framework Integrations](../integrations/langchain.md) — LangChain/LangGraph and MCP middleware
-- [SDK Reference](../sdk/sdk-js.md) — every public surface
+- [Framework Integrations](../integrations/mcp.md) — MCP middleware, LangChain/LangGraph and CrewAI
+- SDK Reference — [TypeScript](../sdk/sdk-js.md) and [Python](../sdk/sdk-py.md)
 - [Self-Hosting & Deployment](../self-hosting/self-hosted-vs-cloud.md) — running the issuer yourself

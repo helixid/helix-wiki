@@ -9,26 +9,41 @@ description: Honest comparisons — where OAuth, API keys, and raw signing are t
 # Why Not Just Use...
 
 :::note[HelixID is complementary to OAuth, not a replacement for it]
-Use OAuth for sessions and simple internal APIs — it is genuinely good at that. Use HelixID for cross-org trust, delegation chains, and auditable credentials. Neither replaces the other, and any copy implying otherwise is overselling.
+Inside one organization, OAuth and your identity provider work well — keep using them. HelixID takes over when an agent crosses into a service owned by someone else: cross-org trust, delegation chains, and auditable credentials. Neither replaces the other, and any copy implying otherwise is overselling.
+
+The two also coexist on one server: [`@helixid/mcp-middleware`](../integrations/mcp.md) accepts HelixID presentations and standard OAuth bearer tokens side by side.
 :::
+
+## "Our identity provider already gives agents an identity"
+
+It does, and inside your own company that is the right tool. Directory-based agent identity is a **badge**: it opens doors in your own building, and every check goes back to your own directory.
+
+A badge does not travel. When your agent calls a partner's API, the partner cannot check your directory, and you would not want every partner to hold an account in it. What an agent needs at that boundary is closer to a **passport and a visa**: an identity issued once that any service can check from published keys, and a permission that the destination service itself grants after its user says yes.
+
+| | Badge (directory identity, OAuth inside one tenant) | Passport + visa (HelixID) |
+| --- | --- | --- |
+| Who can verify it | Services registered with the same identity provider | Any service, from the issuer's public DID document |
+| Crossing to another company | Federation set up between the two, per pair | No federation; the service decides which issuers it accepts |
+| Who grants access at the destination | The caller's identity provider, by policy | The destination service, after its own user consents |
+| Checking a request | Token issued or introspected by the caller's provider | Signature check against static, cacheable documents |
 
 ## "OAuth/JWT already does this"
 
 OAuth authenticates **users to services**. It was not designed for autonomous agents that spawn sub-agents, cross organizational boundaries, and need delegation chains that a third party can verify without calling back to the issuer.
 
-JWT claims are opaque and custom per system — there's no standard way for Service C to verify that Agent B was delegated authority from Agent A by Organization X without calling Organization X's token server. A HelixID credential carries its own proof: verifying it needs the issuer's public key and its revocation bitstring — two static documents that cache or sit on a CDN — never a live call to the issuer asking whether this request should go through.
+JWT claims are custom per system — there's no standard way for Service C to verify that Agent B was delegated authority from Agent A by Organization X without calling Organization X's token server. A HelixID credential carries its own proof: verifying it needs the issuer's public key and its revocation bitstring — static documents that cache or sit on a CDN — never a live call to the issuer asking whether this request should go through.
 
 ### Where each one actually wins
 
 | Scenario | OAuth | HelixID |
 | --- | --- | --- |
-| Simple internal API call, no delegation, cached token | **~100 ms — use OAuth** | ~120 ms, and added complexity for no benefit |
-| Cross-org call with no prior integration | Requires bilateral federation setup | Portable credential, verified from static documents |
-| 5-hop delegation chain | 400–800 ms+ (per-hop issuer callbacks) | ~55 ms (local signature verification per hop) |
-| Revocation | Rotate or introspect (50–200 ms, uncacheable) | One bit in a cacheable shared bitstring |
-| Auditability across org boundaries | Mutable logs on each side | Cryptographically verifiable chain |
+| Simple internal API call, no delegation, cached token | **Use OAuth** — it is faster and simpler | Added complexity for no benefit |
+| Cross-org call with no prior integration | Requires bilateral federation setup | Portable credential, verified from the issuer's static documents |
+| Multi-hop delegation chain | A token exchange with the issuer per hop | One presentation carries the whole chain; each hop is a signature check |
+| Revocation | Rotate, or introspect on every call | One bit in a cacheable shared bitstring |
+| Auditability across org boundaries | Separate logs on each side | A signed chain either side can verify |
 
-The honest summary: **HelixID's latency advantage is in delegation chains, not in single-org calls.** OAuth is faster for simple single-org, no-delegation cases. Position it as "use OAuth for internal APIs — it's perfect there; add HelixID for cross-org APIs and delegation chains."
+The honest summary: **HelixID's advantage is in cross-organization calls and delegation chains, not in single-org calls.** OAuth is faster for simple single-org, no-delegation cases. Position it as "use OAuth for internal APIs — it's perfect there; add HelixID for cross-org APIs and delegation chains."
 
 ### On "no pre-wiring needed"
 
